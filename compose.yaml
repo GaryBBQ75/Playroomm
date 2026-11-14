@@ -1,0 +1,49 @@
+# Coolify: create a Docker Compose application from this repository.
+# Set the required variables in Coolify; do not commit real secrets.
+services:
+  playroom:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    expose:
+      - "8080"
+    environment:
+      PORT: "8080"
+      MAX_PLAYERS: "${MAX_PLAYERS:-8}"
+      ROUND_TIME: "${ROUND_TIME:-45}"
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-playroom}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in Coolify}@postgres:5432/${POSTGRES_DB:-playroom}"
+      REQUIRE_DATABASE: "true"
+      COOKIE_SECURE: "true"
+      APP_ORIGIN: "${APP_ORIGIN:?Set APP_ORIGIN, for example https://playroom.example.com}"
+      ALLOWED_ORIGIN: "${APP_ORIGIN:?Set APP_ORIGIN}"
+      GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID:-}"
+      GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET:-}"
+      GOOGLE_REDIRECT_URI: "${GOOGLE_REDIRECT_URI:-}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/readyz', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 25s
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: "${POSTGRES_DB:-playroom}"
+      POSTGRES_USER: "${POSTGRES_USER:-playroom}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in Coolify}"
+    volumes:
+      - playroom_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-playroom} -d ${POSTGRES_DB:-playroom}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  playroom_pgdata:
