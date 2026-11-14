@@ -106,6 +106,13 @@
  .game-picker{margin:6px 0}
  .pick-game{min-height:60px;padding:7px}
 }
+@media(max-width:790px) and (min-height:650px){
+ .game-section:has(.choice-grid) .game-inner,
+ .game-section:has(.vote-grid) .game-inner{display:flex;flex-direction:column}
+ .game-section .choice-grid,.game-section .vote-grid{margin-block:auto}
+ .game-section .choice-button{min-height:clamp(70px,11dvh,102px)}
+ .game-section .vote-card{min-height:clamp(70px,11dvh,102px)}
+}
 </style>
   <title>Playroom — La soirée commence ici.</title>
 </head>
