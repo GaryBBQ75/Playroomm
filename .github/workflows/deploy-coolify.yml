@@ -1,0 +1,82 @@
+name: Deploy Playroom to Coolify
+
+# Manually launch after creating the Playroom Docker Compose resource in Coolify.
+# Coolify credentials stay in GitHub Actions secrets, never in source files.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Deploy Playroom on Coolify
+        env:
+          COOLIFY_URL: ${{ secrets.COOLIFY_URL }}
+          COOLIFY_API_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
+          COOLIFY_RESOURCE_UUID: ${{ secrets.COOLIFY_RESOURCE_UUID }}
+          PLAYROOM_PUBLIC_URL: ${{ vars.PLAYROOM_PUBLIC_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for variable in COOLIFY_URL COOLIFY_API_TOKEN COOLIFY_RESOURCE_UUID PLAYROOM_PUBLIC_URL; do
+            if [[ -z "${!variable:-}" ]]; then
+              echo "::error::Missing required production secret or variable: $variable"
+              exit 1
+            fi
+          done
+          base="${COOLIFY_URL%/}"
+          site="${PLAYROOM_PUBLIC_URL%/}"
+          if [[ "$base" != https://* || "$site" != https://* ]]; then
+            echo "::error::Both Coolify and Playroom must use valid HTTPS URLs."
+            exit 1
+          fi
+
+          response=$(curl --fail-with-body --silent --show-error \
+            --request POST \
+            --header "Authorization: Bearer $COOLIFY_API_TOKEN" \
+            --header "Accept: application/json" \
+            --url "$base/api/v1/deploy?uuid=$COOLIFY_RESOURCE_UUID")
+          deployment_id=$(echo "$response" | jq -r '.deployments[0].deployment_uuid // empty')
+          if [[ -z "$deployment_id" ]]; then
+            echo "::error::Coolify did not return a deployment UUID."
+            exit 1
+          fi
+          echo "Coolify deployment started (UUID: $deployment_id)."
+
+          status=""
+          for attempt in {1..36}; do
+            result=$(curl --fail-with-body --silent --show-error \
+              --header "Authorization: Bearer $COOLIFY_API_TOKEN" \
+              --header "Accept: application/json" \
+              "$base/api/v1/deployments/$deployment_id")
+            status=$(echo "$result" | jq -r '.status // empty')
+            echo "Deployment status: $status"
+            case "$status" in
+              finished|success|completed) break ;;
+              failed|error|cancelled|canceled)
+                echo "::error::Coolify deployment failed with status $status."
+                exit 1
+                ;;
+            esac
+            sleep 10
+          done
+          case "$status" in
+            finished|success|completed) ;;
+            *) echo "::error::Coolify deployment did not finish within the verification window."; exit 1 ;;
+          esac
+
+          echo "Checking Playroom public readiness..."
+          health=$(curl --fail-with-body --silent --show-error \
+            --retry 12 --retry-delay 5 --retry-all-errors --max-time 10 \
+            "$site/readyz")
+          if [[ "$(echo "$health" | jq -r '.status // empty')" != "ok" ]]; then
+            echo "::error::Playroom readiness endpoint did not report status ok."
+            exit 1
+          fi
+          echo "Playroom is reachable at $site"
+          echo "### Playroom deployed" >> "$GITHUB_STEP_SUMMARY"
+          echo "Verified public URL: $site" >> "$GITHUB_STEP_SUMMARY"
