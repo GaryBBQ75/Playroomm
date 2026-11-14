@@ -122,5 +122,71 @@ class PlayroomFlow(unittest.IsolatedAsyncioTestCase):
             await alice.close()
             await bob.close()
 
+
+    async def test_music_quiz_sync_and_scoring(self):
+        async with self.session.post(self.url+'/api/rooms') as response:
+            code = (await response.json())['code']
+        alice = await self.session.ws_connect(self.url+f'/ws?room={code}')
+        bob = await self.session.ws_connect(self.url+f'/ws?room={code}')
+        try:
+            await alice.send_json({'type':'join','name':'Alice'})
+            await self.get_state(alice)
+            await bob.send_json({'type':'join','name':'Bob'})
+            await self.get_state(alice)
+            await self.get_state(bob)
+            await alice.send_json({'type':'start','game':'music','rounds':3})
+            qa = await self.get_state(alice,'playing','music')
+            qb = await self.get_state(bob,'playing','music')
+            self.assertEqual(qa['melody'], qb['melody'])
+            self.assertTrue(len(qa['melody']) >= 6)
+            self.assertTrue(len(qa['choices']) == 4)
+            self.assertIsNone(qa['correct'])
+            correct = ROOMS[code].quiz['correct']
+            await alice.send_json({'type':'choice','index':correct})
+            await bob.send_json({'type':'choice','index':(correct+1)%4})
+            result = await self.get_state(alice,'results','music')
+            await self.get_state(bob,'results','music')
+            self.assertEqual(result['correct'], correct)
+            self.assertEqual(next(p['score'] for p in result['players'] if p['name']=='Alice'),100)
+        finally:
+            await alice.close()
+            await bob.close()
+
+    async def test_drawing_words_are_simple_with_progressive_hints(self):
+        from server import WORDS, normalize
+        import time
+        self.assertTrue(all(1 <= len(normalize(word)) <= 12 for word in WORDS))
+        self.assertTrue(all(' ' not in word for word in WORDS))
+        async with self.session.post(self.url+'/api/rooms') as response:
+            code = (await response.json())['code']
+        alice = await self.session.ws_connect(self.url+f'/ws?room={code}')
+        bob = await self.session.ws_connect(self.url+f'/ws?room={code}')
+        try:
+            await alice.send_json({'type':'join','name':'Alice'})
+            await self.get_state(alice)
+            await bob.send_json({'type':'join','name':'Bob'})
+            await self.get_state(alice)
+            await self.get_state(bob)
+            await alice.send_json({'type':'start','game':'draw','rounds':3})
+            artist = await self.get_state(alice,'playing','draw')
+            spectator = await self.get_state(bob,'playing','draw')
+            self.assertEqual(spectator['word'], '???')
+            self.assertEqual(spectator['wordLength'],len(normalize(artist['word'])))
+            self.assertEqual(spectator['hintLetter'],'')
+            self.assertEqual(spectator['dimLetters'],[])
+            room = ROOMS[code]
+            room.ends_at = time.time()+8
+            await room.broadcast()
+            artist_hint = await self.get_state(alice,'playing','draw')
+            spectator_hint = await self.get_state(bob,'playing','draw')
+            self.assertEqual(spectator_hint['word'],'???')
+            self.assertEqual(spectator_hint['hintLetter'],normalize(artist['word'])[0].upper())
+            valid_letters = {x.upper() for x in normalize(artist['word'])}
+            self.assertFalse(set(spectator_hint['dimLetters']) & valid_letters)
+            self.assertEqual(artist_hint['word'],artist['word'])
+        finally:
+            await alice.close()
+            await bob.close()
+
 if __name__ == '__main__':
     unittest.main()
