@@ -111,3 +111,8 @@
  #room-screen .game-section[data-state="results"] .result-icon,
  #room-screen .game-section[data-state="results"] .result-center:before {animation:none!important}
 }
+
+/* Reward pop uses the same playful language as arcade score streaks. */
+.score-burst{position:absolute;z-index:23;pointer-events:none;left:50%;top:29%;transform:translate(-50%,-50%);font:900 clamp(35px,10vw,78px) "Outfit",sans-serif;color:#ffbc3b;text-shadow:0 6px 0 #9f571d,0 16px 30px #0003;-webkit-text-stroke:1px #fff;white-space:nowrap;animation:scoreBurst .98s ease-out both}
+@keyframes scoreBurst{0%{opacity:0;transform:translate(-50%,12%) scale(.5) rotate(-8deg)}25%{opacity:1;transform:translate(-50%,-40%) scale(1.22) rotate(5deg)}75%{opacity:1;transform:translate(-50%,-60%) scale(1)}100%{opacity:0;transform:translate(-50%,-110%) scale(.95)}}
+@media(prefers-reduced-motion:reduce){.score-burst{animation:none!important;opacity:1}}
