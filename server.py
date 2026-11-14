@@ -24,12 +24,13 @@ ALLOWED_ORIGIN = os.getenv("ALLOWED_ORIGIN", "")
 ROOMS = {}
 # Simple, concrete everyday objects: recognizable and fun to draw in under a minute.
 WORDS = [
-    "chat", "chien", "soleil", "maison", "vélo", "pizza", "fleur", "bateau",
-    "fusée", "pomme", "banane", "arbre", "nuage", "lunettes", "poisson",
-    "gâteau", "avion", "ballon", "lapin", "voiture", "robot", "étoile",
-    "livre", "chapeau", "téléphone", "oiseau", "clé", "montagne",
-    "abeille", "tortue", "parapluie", "bonbon", "champignon", "serpent",
-    "maïs", "cadeau", "cactus", "maillot", "train", "citrouille",
+    "chat", "chien", "maison", "soleil", "arbre", "fleur", "ballon", "pomme",
+    "banane", "vélo", "voiture", "bateau", "poisson", "lapin", "oiseau", "étoile",
+    "livre", "chapeau", "lunettes", "clé", "cadeau", "gâteau", "pizza", "nuage",
+    "avion", "train", "tasse", "table", "chaise", "lit", "porte", "fenêtre",
+    "crayon", "bougie", "cœur", "nez", "œil", "main", "pied", "sac",
+    "montre", "chaussure", "parapluie", "bonbon", "tortue", "serpent", "robot", "lune",
+    "ciseaux", "brosse",
 ]
 QUIZZES = [
     ("Quel animal possède trois cœurs ?", ["La pieuvre","Le dauphin","Le flamant rose","Le lama"], 0),
