@@ -248,7 +248,7 @@ const peers = new Map(), remoteStreams = new Map(), pendingCandidates = new Map(
 let toastTimer;
 let selectedGame = 'mix', selectedRounds = 6;
 const gameNames = {draw:'DESSINE-MOI ÇA',quiz:'QUIZ ÉCLAIR',music:'BLIND TEST',vote:'QUI DE NOUS ?'};
-let guessDraft='',keyboardOpen=false,lastRoundKey='',musicPlayedUntil=0;
+let guessDraft='',keyboardOpen=false,lastRoundKey='',musicPlayedUntil=0,previousOwnScore=null;
 $('nickname').value = localStorage.getItem('playroom-nickname') || '';
 if(roomCode) {
   $('create-form').querySelector('button').innerHTML = 'Rejoindre cette soirée <span>↗</span>';
@@ -329,6 +329,9 @@ function statusLine(){
 function render(){
  if(!state)return;
  const activeKey=state.room+':'+state.round+':'+state.game;
+ const myScore=state.players.find(p=>p.id===userId)?.score;
+ const earned=typeof myScore==='number'&&previousOwnScore!==null&&myScore>previousOwnScore?myScore-previousOwnScore:0;
+ if(typeof myScore==='number')previousOwnScore=myScore;
  const isNewRound=state.status==='playing'&&activeKey!==lastRoundKey;
  if(isNewRound){
    lastRoundKey=activeKey;guessDraft='';keyboardOpen=false;
@@ -349,6 +352,7 @@ function render(){
  else if(state.status==='results')renderResults();
  else renderFinished();
  if(isNewRound)flashRound(state.game);
+ if(earned)showScoreBurst(earned);
  updateCountdown();
  if(countdown)clearInterval(countdown);countdown=setInterval(updateCountdown,200);
 }
@@ -407,6 +411,14 @@ function updateKeyboard(){
   if(panel)panel.classList.toggle('hidden',!keyboardOpen);
   const toggle=$('keyboard-toggle');
   if(toggle)toggle.setAttribute('aria-expanded',String(keyboardOpen));
+}
+function showScoreBurst(value){
+  const section=$('game-section');
+  if(!section||!value)return;
+  const burst=document.createElement('div');
+  burst.className='score-burst';burst.textContent='+'+value+' !';
+  section.appendChild(burst);
+  setTimeout(()=>burst.remove(),1100);
 }
 function flashRound(game){
   const parent=$('game-section');
