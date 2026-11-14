@@ -1,6 +1,6 @@
 # Playroom — jeux entre amis en direct
 
-Plateforme mobile-first de jeux multijoueurs (dessin plein écran, quiz, votes et Mix Party). Un salon privé partagé par lien, un classement commun, du WebSocket temps réel, et une visio WebRTC optionnelle. **L'inscription n'est jamais obligatoire pour jouer** : les amis peuvent rejoindre avec un pseudo.
+Plateforme mobile-first de jeux multijoueurs (dessin plein écran, quiz, blind test musical, votes et Mix Party). Un salon privé partagé par lien, un classement commun, du WebSocket temps réel, et une visio WebRTC optionnelle. **L'inscription n'est jamais obligatoire pour jouer** : les amis peuvent rejoindre avec un pseudo.
 
 ## Déployer sur OVH avec Coolify et PostgreSQL
 
@@ -70,6 +70,18 @@ La CI GitHub Actions lance PostgreSQL 17, exécute les tests du jeu et de l'auth
 - `public/index.html` : interface mobile-first et web.
 - `public/manifest.webmanifest` : installation PWA.
 - `tests/` : multijoueur et intégration SQL.
+
+## Jeux et expérience mobile
+
+- **Dessin** : objets faciles à dessiner, plateau tactile occupant la majorité de l'écran, clavier AZERTY facultatif qui évite l'ouverture du clavier Android, indices progressifs sur le nombre de lettres, initiale et touches grisées en fin de manche.
+- **Quiz** : réponses tactiles larges et rythme accéléré.
+- **Qui de nous ?** : votes entre amis.
+- **Blind test** : mélodies de compositions du domaine public, interprétées par synthèse Web Audio directement dans le navigateur (aucun enregistrement commercial ni API musicale tierce). La lecture commence sur un geste explicite de l'utilisateur, notamment sur Android et iOS.
+- **Mix Party** : alternance automatique des quatre jeux avec transitions animées, résultats courts, récompenses de points et classement partagé.
+
+L'identité globale reste Playroom, mais chaque mini-jeu possède son propre thème dans `public/assets/games.css` et son interface dynamique. Le clavier intégré est repliable pour laisser l'espace nécessaire au dessin ; sur ordinateur, le clavier physique fonctionne toujours.
+
+Pour un futur blind test de chansons populaires, **obtenir des droits d'utilisation sur les enregistrements et leurs compositions** avant de diffuser des extraits, même courts.
 
 ## Limites de la première version
 
