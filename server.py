@@ -158,7 +158,7 @@ class Room:
         self.round_number = -1
         self.total_rounds = rounds
         self.mode = game
-        self.playlist = ["draw", "quiz", "music", "vote"] if game == "mix" else [game]
+        self.playlist = ["draw", "quiz", "vote", "music"] if game == "mix" else [game]
         if not self.resume_scores:
             for p in self.players.values():
                 p.score = 0
