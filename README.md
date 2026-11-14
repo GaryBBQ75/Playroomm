@@ -1,23 +1,20 @@
 # Playroom
 
-Plateforme multijoueur de mini-jeux entre amis, avec visio et manches qui tournent automatiquement.
+Plateforme de mini-jeux entre amis, avec salons privés, visio et manches qui tournent automatiquement.
 
-**Projet : Playroom** · **Dépôt GitHub actuel : GameRoom**
+## État actuel
 
-## Prototype V1
+- ✅ Interface du prototype importée dans [preview/index.html](./preview/index.html).
+- ✅ Code du prototype complet disponible dans l'archive de la conversation ChatGPT.
+- ⏳ Le serveur Python WebSocket, les tests, les assets PWA et le Dockerfile restent à importer dans ce dépôt.
+- ⏳ Pas encore de version publique jouable ni de déploiement Coolify.
 
-- Salons privés et invitation par lien
-- Trois mini-jeux : dessin, quiz, « Qui de nous ? »
-- Parties et scores synchronisés
-- Visio WebRTC pour petits groupes (client web)
-- Application web mobile/PWA, prévue pour Docker et Coolify
+**Attention :** `preview/index.html` dépend du serveur multijoueur, donc ouvrir simplement ce fichier ne suffit pas à faire fonctionner des parties entre amis.
 
-## Architecture multiplateforme
+## Objectif
 
-Un serveur commun pour le gameplay et les scores, avec des clients spécifiques à chaque plateforme : web/PWA d'abord, puis Android, Discord Activities, Telegram Mini Apps et TikTok Mini Games selon leurs API et validations. WhatsApp permet de partager des invitations vers la version web.
+Déploiement web/Android (PWA) initial, architecture de synchronisation indépendante des plateformes, futures intégrations Discord Activities, Telegram Mini Apps et TikTok Mini Games selon leurs API respectives.
 
-## État
+## Hébergement
 
-Le dépôt est initialisé. Le code du prototype V1 reste à importer ; ce README n'est pas un site public et aucun déploiement n'a encore été effectué.
-
-Pour renommer le **dépôt GitHub** lui-même de `GameRoom` en `playroom`, utiliser **Settings > General > Repository name > Rename**. Les dépôts GitHub sont distincts du nom commercial de l'application.
+Une fois les sources complètes importées : build Docker sur Coolify, proxy HTTPS avec WebSocket, caméras et micros autorisés dans le navigateur.
