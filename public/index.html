@@ -328,11 +328,27 @@ function statusLine(){
 }
 function render(){
  if(!state)return;
+ const activeKey=state.room+':'+state.round+':'+state.game;
+ const isNewRound=state.status==='playing'&&activeKey!==lastRoundKey;
+ if(isNewRound){
+   lastRoundKey=activeKey;guessDraft='';keyboardOpen=false;
+   window.PlayroomAudio?.stop();musicPlayedUntil=0;
+ }
+ if(state.status==='results'){
+   window.PlayroomAudio?.stop();musicPlayedUntil=0;keyboardOpen=false;
+ }
+ if(state.status==='lobby'||state.status==='finished'){
+   lastRoundKey='';keyboardOpen=false;
+ }
+ const section=$('game-section');
+ section.dataset.game=state.game||state.mode||'mix';
+ section.dataset.state=state.status;
  statusLine();renderPlayers();renderScore();
  if(state.status==='lobby')renderLobby();
  else if(state.status==='playing')renderGame();
  else if(state.status==='results')renderResults();
  else renderFinished();
+ if(isNewRound)flashRound(state.game);
  updateCountdown();
  if(countdown)clearInterval(countdown);countdown=setInterval(updateCountdown,200);
 }
@@ -462,14 +478,14 @@ function renderGame(){
 function renderResults(){
  let title='',desc='';
  if(state.game==='draw'){title='Le dessin est révélé !';desc=`La bonne réponse était <strong>${esc(state.word)}</strong>. ${state.guesses.filter(g=>g.correct).length} bonne(s) réponse(s) !`}
- if(state.game==='quiz'){title='La bonne réponse !';desc=`<strong>${esc(state.choices[state.correct])}</strong> · 100 points pour ceux qui ont trouvé.`}
+ if(state.game==='quiz'||state.game==='music'){title=state.game==='music'?'🎵 Quel air !':'La bonne réponse !';desc=`<strong>${esc(state.choices[state.correct])}</strong> · 100 points pour ceux qui ont trouvé.`}
  if(state.game==='vote'){
    title='Les votes sont tombés !';
    const [id,count]=Object.entries(state.voteCounts||{}).sort((a,b)=>b[1]-a[1])[0]||[];
    const winner=state.players.find(p=>p.id===id);
    desc=winner && count?`${esc(winner.name)} remporte ${count} vote${count>1?'s':''} !`:'Personne n’a voté cette fois.';
  }
- $('game-section').innerHTML=`<div class="game-inner">${roundHeader('✨ RÉSULTATS')}<div class="result-center"><div class="result-icon">${state.game==='draw'?'🎨':state.game==='quiz'?'💡':'🎉'}</div><h2 class="result-score">${title}</h2><p class="result-answers">${desc}</p><p class="game-desc">Prochaine manche dans quelques secondes…</p><div class="progress-bar"><div id="results-progress" style="width:100%"></div></div>${state.host===userId?'<button id="next-game" class="btn violet results-next">Jeu suivant →</button>':''}</div></div>`;
+ $('game-section').innerHTML=`<div class="game-inner">${roundHeader('✨ RÉSULTATS')}<div class="result-center"><div class="result-icon">${state.game==='draw'?'🎨':state.game==='quiz'?'💡':state.game==='music'?'🎵':'🎉'}</div><h2 class="result-score">${title}</h2><p class="result-answers">${desc}</p><p class="game-desc">Prochaine manche dans quelques secondes…</p><div class="progress-bar"><div id="results-progress" style="width:100%"></div></div>${state.host===userId?'<button id="next-game" class="btn violet results-next">Jeu suivant →</button>':''}</div></div>`;
  if($('next-game'))$('next-game').onclick=()=>send({type:'next'});
 }
 function renderFinished(){
@@ -477,12 +493,34 @@ function renderFinished(){
  $('game-section').innerHTML=`<div class="game-inner result-center"><div class="result-icon">🏆</div><div class="eyebrow-game">✦ SOIRÉE TERMINÉE</div><h2 class="result-score">${ps[0]?`${esc(ps[0].name)} remporte la soirée !`:'Bien joué !'}</h2><p class="game-desc">Une belle partie… et une revanche ?</p><div class="scoreboard" style="max-width:350px;margin:35px auto">${ps.map((p,i)=>`<div class="score-line"><span class="rank">${i+1}</span><span class="score-name">${avatar(p.id)} ${esc(p.name)}</span><span class="points">${p.score} pt</span></div>`).join('')}</div>${state.host===userId?'<button id="restart-game" class="btn primary">On remet ça ? ↗</button>':'<p class="game-desc">En attente d’une revanche…</p>'}</div>`;
  if($('restart-game'))$('restart-game').onclick=()=>send({type:'start',rounds:state.totalRounds,game:state.mode});
 }
-function updateCountdown(){if(!state?.endsAt)return;let sec=Math.max(0,Math.ceil((state.endsAt-Date.now())/1000));const clock=$('clock');if(clock){clock.textContent=`${String(Math.floor(sec/60)).padStart(2,'0')}:${String(sec%60).padStart(2,'0')}`;clock.classList.toggle('urgent',sec<=10)}const bar=$('results-progress');if(bar)bar.style.width=`${Math.min(100,Math.max(0,sec/7*100))}%`}
+function updateCountdown(){if(!state?.endsAt)return;let sec=Math.max(0,Math.ceil((state.endsAt-Date.now())/1000));const clock=$('clock');if(clock){clock.textContent=`${String(Math.floor(sec/60)).padStart(2,'0')}:${String(sec%60).padStart(2,'0')}`;clock.classList.toggle('urgent',sec<=10)}const bar=$('results-progress');if(bar)bar.style.width=`${Math.min(100,Math.max(0,sec/4*100))}%`}
 function showDrawHelp(){const isArtist=state?.artistId===userId; $('draw-help-content').textContent=isArtist?'Dessine le mot secret avec ton doigt. Les autres doivent deviner avant la fin du temps !':'Regarde le dessin et écris ta réponse dans le champ sous le canvas. Sois le premier à trouver !';$('draw-help-dialog').classList.remove('hidden');$('draw-help-close').focus()}
 function closeDrawHelp(){$('draw-help-dialog').classList.add('hidden')}
 $('draw-help-close').onclick=closeDrawHelp;
 $('draw-help-backdrop').onclick=closeDrawHelp;
+let boardResizeObserver=null;
 function canvas(){return $('draw-canvas')}
+function fitDrawingCanvas(){
+  if(boardResizeObserver){boardResizeObserver.disconnect();boardResizeObserver=null}
+  const c=canvas();
+  if(!c)return;
+  const shell=c.parentElement;
+  const fit=()=>{
+    if(!c.isConnected)return;
+    const rect=shell.getBoundingClientRect();
+    if(rect.width<1||rect.height<1)return;
+    const ratio=Math.min(2,window.devicePixelRatio||1);
+    const w=Math.max(1,Math.round(rect.width*ratio));
+    const h=Math.max(1,Math.round(rect.height*ratio));
+    if(c.width!==w||c.height!==h){c.width=w;c.height=h;paintAll()}
+  };
+  fit();
+  if('ResizeObserver' in window){
+    boardResizeObserver=new ResizeObserver(fit);
+    boardResizeObserver.observe(shell);
+  }
+}
+
 function ctx(){return canvas()?.getContext('2d')}
 function paintStroke(stroke){const c=canvas();if(!c||!stroke?.points?.length)return;const x=ctx();x.strokeStyle=stroke.color||'#432ad0';x.lineWidth=7;x.lineCap='round';x.lineJoin='round';x.beginPath();stroke.points.forEach(([px,py],i)=>{if(i===0)x.moveTo(px*c.width,py*c.height);else x.lineTo(px*c.width,py*c.height)});if(stroke.points.length===1)x.lineTo(stroke.points[0][0]*c.width+.1,stroke.points[0][1]*c.height+.1);x.stroke()}
 function clearCanvas(){const c=canvas();if(c)c.getContext('2d').clearRect(0,0,c.width,c.height)}
