@@ -11,7 +11,8 @@ services:
     environment:
       PORT: "8080"
       MAX_PLAYERS: "${MAX_PLAYERS:-8}"
-      ROUND_TIME: "${ROUND_TIME:-45}"
+      ROUND_TIME: "${ROUND_TIME:-35}"
+      DRAW_TIME: "${DRAW_TIME:-45}"
       DATABASE_URL: "postgresql://${POSTGRES_USER:-playroom}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in Coolify}@postgres:5432/${POSTGRES_DB:-playroom}"
       REQUIRE_DATABASE: "true"
       COOKIE_SECURE: "true"
