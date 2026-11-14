@@ -17,10 +17,20 @@ LOGGER = logging.getLogger(__name__)
 ROOT = Path(__file__).parent
 PORT = int(os.getenv("PORT", "8080"))
 MAX_PLAYERS = int(os.getenv("MAX_PLAYERS", "8"))
-ROUND_TIME = int(os.getenv("ROUND_TIME", "45"))
+ROUND_TIME = int(os.getenv("ROUND_TIME", "35"))
+DRAW_TIME = int(os.getenv("DRAW_TIME", "45"))
+RESULT_TIME = 4
 ALLOWED_ORIGIN = os.getenv("ALLOWED_ORIGIN", "")
 ROOMS = {}
-WORDS = ["Une girafe en trottinette", "Un chien astronaute", "Un volcan de fromage", "Une licorne au bureau", "Un pingouin en vacances", "Un chat DJ", "Un robot qui jardine", "Un crocodile qui danse"]
+# Simple, concrete everyday objects: recognizable and fun to draw in under a minute.
+WORDS = [
+    "chat", "chien", "soleil", "maison", "vélo", "pizza", "fleur", "bateau",
+    "fusée", "pomme", "banane", "arbre", "nuage", "lunettes", "poisson",
+    "gâteau", "avion", "ballon", "lapin", "voiture", "robot", "étoile",
+    "livre", "chapeau", "téléphone", "oiseau", "clé", "montagne",
+    "abeille", "tortue", "parapluie", "bonbon", "champignon", "serpent",
+    "maïs", "cadeau", "cactus", "maillot", "train", "citrouille",
+]
 QUIZZES = [
     ("Quel animal possède trois cœurs ?", ["La pieuvre","Le dauphin","Le flamant rose","Le lama"], 0),
     ("Combien de côtés a un hexagone ?", ["Cinq","Six","Sept","Huit"], 1),
@@ -36,6 +46,16 @@ VOTES = [
     "Qui ferait le meilleur espion ?",
     "Qui deviendrait célèbre pour une raison absurde ?",
     "Qui oublierait le mot de passe de son propre coffre ?",
+]
+
+# Public-domain compositions, synthesized client-side from these original note data.
+# These are melodies, not third-party copyrighted audio recordings.
+MUSIC_QUIZZES = [
+    ("Frère Jacques", [60, 62, 64, 60, 60, 62, 64, 60, 64, 65, 67, 64, 65, 67]),
+    ("Ode à la joie", [64, 64, 65, 67, 67, 65, 64, 62, 60, 60, 62, 64, 64, 62, 62]),
+    ("Ah ! vous dirai-je, maman", [60, 60, 67, 67, 69, 69, 67, 65, 65, 64, 64, 62, 62, 60]),
+    ("Au clair de la lune", [60, 60, 60, 62, 64, 62, 60, 64, 62, 62, 60]),
+    ("Joyeux anniversaire", [67, 67, 69, 67, 72, 71, 67, 67, 69, 67, 74, 72]),
 ]
 
 def clean(value, limit=28):
@@ -94,8 +114,19 @@ class Room:
             result["artistId"] = self.artist_id
             result["word"] = self.answer if self.artist_id == player_id or self.status in ("results", "finished") else "???"
             result["solved"] = [g["id"] for g in self.guesses if g.get("correct")]
-        elif self.game == "quiz":
+            result["wordLength"] = len(normalize(self.answer))
+            if self.status == "playing" and player_id != self.artist_id:
+                remaining = max(0, self.ends_at - time.time())
+                result["hintLetter"] = normalize(self.answer)[:1].upper() if remaining <= 18 else ""
+                result["dimLetters"] = (
+                    [c for c in "AZERTYUIOPQSDFGHJKLMWXCVBN" if c.lower() not in normalize(self.answer)][:10]
+                    if remaining <= 10 else []
+                )
+        elif self.game in ("quiz", "music"):
             result["question"] = self.quiz.get("q", "")
+            if self.game == "music":
+                result["melody"] = self.quiz.get("melody", [])
+                result["noteMs"] = self.quiz.get("noteMs", 330)
             result["choices"] = self.quiz.get("choices", [])
             result["correct"] = self.quiz.get("correct") if self.status in ("results", "finished") else None
             result["yourChoice"] = self.choices.get(player_id)
@@ -127,7 +158,7 @@ class Room:
         self.round_number = -1
         self.total_rounds = rounds
         self.mode = game
-        self.playlist = ["draw", "quiz", "vote"] if game == "mix" else [game]
+        self.playlist = ["draw", "quiz", "music", "vote"] if game == "mix" else [game]
         if not self.resume_scores:
             for p in self.players.values():
                 p.score = 0
@@ -155,9 +186,16 @@ class Room:
         elif self.game == "quiz":
             q, options, correct = random.choice(QUIZZES)
             self.quiz = {"q": q, "choices": options, "correct": correct}
+        elif self.game == "music":
+            title, melody = random.choice(MUSIC_QUIZZES)
+            other_titles = [name for name, _ in MUSIC_QUIZZES if name != title]
+            options = random.sample(other_titles, 3) + [title]
+            random.shuffle(options)
+            self.quiz = {"q": "Quelle mélodie reconnais-tu ?", "choices": options,
+                         "correct": options.index(title), "melody": melody, "noteMs": 330}
         else:
             self.vote_prompt = random.choice(VOTES)
-        self.ends_at = time.time() + (60 if self.game == "draw" else ROUND_TIME)
+        self.ends_at = time.time() + (DRAW_TIME if self.game == "draw" else ROUND_TIME)
         await self.broadcast()
         self.timer = asyncio.create_task(self._finish_later(self.generation))
 
@@ -184,6 +222,13 @@ class Room:
 
     async def _finish_later(self, generation):
         try:
+            # Only two hint updates instead of a websocket broadcast every second.
+            if self.game == "draw":
+                for threshold in (18, 10):
+                    await asyncio.sleep(max(0, self.ends_at - time.time() - threshold))
+                    if generation != self.generation or self.status != "playing":
+                        return
+                    await self.broadcast()
             await asyncio.sleep(max(0, self.ends_at - time.time()))
             if generation == self.generation and self.status == "playing":
                 await self.finish_round()
@@ -195,8 +240,8 @@ class Room:
             return
         self.cancel_timer()
         self.status = "results"
-        self.ends_at = time.time() + 7
-        if self.game == "quiz":
+        self.ends_at = time.time() + RESULT_TIME
+        if self.game in ("quiz", "music"):
             for pid, choice in self.choices.items():
                 if pid in self.players and choice == self.quiz["correct"]:
                     self.players[pid].score += 100
@@ -212,7 +257,7 @@ class Room:
 
     async def _next_later(self, generation):
         try:
-            await asyncio.sleep(7)
+            await asyncio.sleep(RESULT_TIME)
             if generation == self.generation and self.status == "results":
                 await self.next_round()
         except asyncio.CancelledError:
@@ -222,7 +267,7 @@ class Room:
         kind = data.get("type")
         if kind == "start" and p.id == self.host and self.status in ("lobby", "finished") and len(self.players) >= 2:
             chosen = data.get("game", "mix")
-            if chosen not in ("mix", "draw", "quiz", "vote"):
+            if chosen not in ("mix", "draw", "quiz", "music", "vote"):
                 return
             rounds = data.get("rounds", 6)
             if type(rounds) is not int or rounds not in (0, 3, 6, 12):
@@ -273,7 +318,7 @@ class Room:
             await self.broadcast()
             if success and all(user.id == self.artist_id or any(g["id"] == user.id and g["correct"] for g in self.guesses) for user in self.players.values()):
                 await self.finish_round()
-        elif kind == "choice" and self.status == "playing" and self.game == "quiz" and p.id not in self.choices:
+        elif kind == "choice" and self.status == "playing" and self.game in ("quiz", "music") and p.id not in self.choices:
             option = data.get("index")
             if type(option) is not int or option not in range(len(self.quiz["choices"])):
                 return
