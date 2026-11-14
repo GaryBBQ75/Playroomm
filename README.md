@@ -1,15 +1,23 @@
-# GameRoom / Playroom
+# Playroom
 
-Prototype multi-jeux et visio entre amis, compatible web et mobile (PWA), conçu pour permettre de futurs clients Discord Activities, Telegram Mini Apps et TikTok Mini Games.
+Plateforme multijoueur de mini-jeux entre amis, avec visio et manches qui tournent automatiquement.
+
+**Projet : Playroom** · **Dépôt GitHub actuel : GameRoom**
+
+## Prototype V1
+
+- Salons privés et invitation par lien
+- Trois mini-jeux : dessin, quiz, « Qui de nous ? »
+- Parties et scores synchronisés
+- Visio WebRTC pour petits groupes (client web)
+- Application web mobile/PWA, prévue pour Docker et Coolify
+
+## Architecture multiplateforme
+
+Un serveur commun pour le gameplay et les scores, avec des clients spécifiques à chaque plateforme : web/PWA d'abord, puis Android, Discord Activities, Telegram Mini Apps et TikTok Mini Games selon leurs API et validations. WhatsApp permet de partager des invitations vers la version web.
 
 ## État
 
-Le prototype local comprend des salons privés, un serveur WebSocket, trois mini-jeux (dessin, quiz, votes), un classement et une visio WebRTC pour petits groupes. Les clients des réseaux sociaux ne sont pas encore implémentés.
+Le dépôt est initialisé. Le code du prototype V1 reste à importer ; ce README n'est pas un site public et aucun déploiement n'a encore été effectué.
 
-Le code de la V1 et les instructions Docker/Coolify sont en cours d'importation dans ce dépôt.
-
-## Déploiement
-
-Le serveur est basé sur Python/aiohttp. Le Dockerfile expose le port 8080 et nécessite HTTPS pour la caméra/le microphone, ainsi que la prise en charge des WebSockets par le proxy.
-
-Le nom du dépôt GameRoom est conservé ; le nom du produit Playroom est provisoire.
+Pour renommer le **dépôt GitHub** lui-même de `GameRoom` en `playroom`, utiliser **Settings > General > Repository name > Rename**. Les dépôts GitHub sont distincts du nom commercial de l'application.
