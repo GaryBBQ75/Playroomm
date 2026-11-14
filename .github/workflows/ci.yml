@@ -31,4 +31,15 @@ jobs:
       - run: pip install -r requirements.txt
       - run: python -m unittest discover -s tests -v
       - run: POSTGRES_PASSWORD=test_password APP_ORIGIN=https://playroom.example.com docker compose -f compose.yaml config --quiet
+      - name: Check browser game JavaScript
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          html = Path('public/index.html').read_text(encoding='utf-8')
+          inline = html.split('<script>')[-1].split('</script>')[0]
+          Path('/tmp/playroom-frontend.js').write_text(inline, encoding='utf-8')
+          PY
+          node --check /tmp/playroom-frontend.js
+          node --check public/assets/music.js
       - run: docker build -t playroom-test .
