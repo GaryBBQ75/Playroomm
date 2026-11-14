@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#16142b" />
   <meta name="description" content="Playroom : la soirée jeux qui tourne toute seule, avec tes amis en visio."/>
   <link rel="manifest" href="/manifest.webmanifest"/>
+<link rel="stylesheet" href="/assets/games.css?v=3"/>
   <style>@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&display=swap');
 :root{--ink:#19182c;--purple:#6947f7;--deep:#24194c;--orange:#ffbd56;--pink:#ff77a5;--cream:#fffaf3;--line:#e9e4e7;--muted:#787486}
 *{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--ink)}button,input{font:inherit}button{cursor:pointer}button:disabled{opacity:.48;cursor:not-allowed}.hidden{display:none!important}.shell{width:min(1240px,calc(100% - 72px));margin:auto}
@@ -234,7 +235,8 @@
   <div id="score-sheet" class="score-sheet hidden" role="dialog" aria-modal="true" aria-labelledby="score-sheet-title"><div class="score-sheet-backdrop" id="score-backdrop"></div><div class="score-sheet-panel"><div class="score-sheet-top"><strong id="score-sheet-title">🏆 Classement de la soirée</strong><button id="score-close" class="mobile-icon-btn" aria-label="Fermer les scores">×</button></div><div id="score-sheet-content" class="scoreboard"></div></div></div>
   <div id="draw-help-dialog" class="draw-help-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="draw-help-title"><div id="draw-help-backdrop" class="draw-help-backdrop"></div><div class="draw-help-panel"><div style="font-size:44px">🎨</div><h2 id="draw-help-title">Dessine-moi ça</h2><p id="draw-help-content">Dessine ou devine le mot avant la fin du chrono.</p><button id="draw-help-close" class="btn primary" type="button">Jouer !</button></div></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script>/* Playroom V1 — shared web UI + platform-neutral room protocol. */
+  <script src="/assets/music.js?v=1"></script>
+<script>/* Playroom V1 — shared web UI + platform-neutral room protocol. */
 'use strict';
 const $ = (id) => document.getElementById(id);
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -245,7 +247,8 @@ let localStream = null, microphoneEnabled = true;
 const peers = new Map(), remoteStreams = new Map(), pendingCandidates = new Map();
 let toastTimer;
 let selectedGame = 'mix', selectedRounds = 6;
-const gameNames = {draw:'DESSINE-MOI ÇA',quiz:'QUIZ ÉCLAIR',vote:'QUI DE NOUS ?'};
+const gameNames = {draw:'DESSINE-MOI ÇA',quiz:'QUIZ ÉCLAIR',music:'BLIND TEST',vote:'QUI DE NOUS ?'};
+let guessDraft='',keyboardOpen=false,lastRoundKey='',musicPlayedUntil=0;
 $('nickname').value = localStorage.getItem('playroom-nickname') || '';
 if(roomCode) {
   $('create-form').querySelector('button').innerHTML = 'Rejoindre cette soirée <span>↗</span>';
@@ -353,9 +356,10 @@ function renderScore(){let ps=[...state.players].sort((a,b)=>b.score-a.score);$(
 function renderLobby(){
   const host=state.host===userId, canStart=state.players.length>=2;
   const games=[
-    ['mix','🎲','Mix Party','Les jeux se succèdent'],
-    ['draw','🎨','Dessin','Dessine et fais deviner'],
+    ['mix','🎲','Mix Party','Dessins, quiz, musique, votes'],
+    ['draw','🎨','Dessin','Des mots faciles, du fun'],
     ['quiz','⚡','Quiz éclair','Réponds avant les autres'],
+    ['music','🎵','Blind test','Reconnais la mélodie'],
     ['vote','😂','Qui de nous ?','Vote pour tes amis']
   ];
   const picker=host ? `<div class="game-picker">${games.map(([id,icon,title,desc])=>`<button type="button" class="pick-game ${selectedGame===id?'selected':''}" data-game="${id}" aria-pressed="${selectedGame===id}"><span>${icon}</span><strong>${title}</strong><small>${desc}</small></button>`).join('')}</div>
@@ -373,26 +377,88 @@ function renderLobby(){
   }
 }
 function roundHeader(text){return `<div class="round-head"><span class="eyebrow-game">✦ ${text}</span>${state?.game==='draw'?'<button id="draw-help-open" type="button" class="draw-help-btn" aria-label="Voir les règles">?</button>':''}<span id="clock" class="clock">--:--</span></div>`}
-function renderGame(){
- const el=$('game-section');
- if(state.game==='draw'){
-   const artist=state.artistId===userId;
-   const artistName=state.players.find(p=>p.id===state.artistId)?.name||'Un joueur';
-   const solved=state.solved?.includes(userId);
-   el.innerHTML=`<div class="game-inner draw-game">${roundHeader('🎨 DESSINE-MOI ÇA')}<h2 class="game-prompt">${artist?'À toi de dessiner !':`Devine le dessin de ${esc(artistName)} !`}</h2><p class="game-desc">${artist?`Mot secret : <strong>${esc(state.word)}</strong>. Ne le dis pas !`:'Observe bien et sois le premier à trouver le mot.'}</p><div class="canvas-shell"><canvas id="draw-canvas" class="draw-canvas" width="825" height="500" aria-label="Zone de dessin"></canvas></div>${artist?`<div class="tools"><span class="game-desc">Couleur :</span>${['#432ad0','#ef4782','#ffb841','#15a18d','#22263c'].map(c=>`<button aria-label="Couleur ${c}" class="swatch ${c===color?'active':''}" style="background:${c}" data-color="${c}"></button>`).join('')}<button class="video-button" id="clear-drawing">Effacer ↺</button></div>`:`<form id="guess-form" class="guess-form"><input type="text" maxlength="75" required placeholder="Ton idée…" autocomplete="off" ${solved?'disabled':''}/><button class="btn violet" ${solved?'disabled':''}>${solved?'Trouvé !':'Valider ↗'}</button></form>`}<div class="guess-feed">${state.guesses.map(g=>`<span class="guess-chip ${g.correct?'correct':''}"><strong>${esc(g.name)} :</strong> ${esc(g.text)}</span>`).join('')}</div></div>`;
-   paintAll();
-   $('draw-help-open').onclick=showDrawHelp;
-   if(artist){wireDrawing();el.querySelectorAll('.swatch').forEach(b=>b.onclick=()=>{color=b.dataset.color;el.querySelectorAll('.swatch').forEach(x=>x.classList.toggle('active',x===b))});$('clear-drawing').onclick=()=>send({type:'clear'})}
-   else if(!solved)$('guess-form').onsubmit=e=>{e.preventDefault();const input=e.currentTarget.querySelector('input');send({type:'guess',value:input.value});input.value=''};
- } else if(state.game==='quiz'){
-   el.innerHTML=`<div class="game-inner">${roundHeader('⚡ QUIZ ÉCLAIR')}<h2 class="game-prompt">${esc(state.question)}</h2><p class="game-desc">Bonne réponse = 100 points. Tout le monde répond en même temps.</p><div class="choice-grid">${state.choices.map((c,i)=>`<button class="choice-button ${state.yourChoice===i?'chosen':''}" data-index="${i}" ${state.yourChoice!=null?'disabled':''}><span>${'ABCD'[i]}</span> ${esc(c)}</button>`).join('')}</div><p class="tiny-note">${state.yourChoice==null?'Choisis vite, le chrono tourne !':'Réponse envoyée. On attend les autres joueurs…'}</p></div>`;
-   el.querySelectorAll('.choice-button').forEach(b=>b.onclick=()=>send({type:'choice',index:Number(b.dataset.index)}));
- } else if(state.game==='vote'){
-   const others=state.players.filter(p=>p.id!==userId);
-   el.innerHTML=`<div class="game-inner">${roundHeader('😂 QUI DE NOUS ?')}<h2 class="game-prompt">${esc(state.question)}</h2><p class="game-desc">Vote pour un ami. Les votes seront révélés en même temps !</p><div class="vote-grid">${others.map(p=>`<button class="vote-card ${state.yourChoice===p.id?'chosen':''}" data-id="${esc(p.id)}" ${state.yourChoice?'disabled':''}><span class="face">${avatar(p.id)}</span><span>${esc(p.name)}</span></button>`).join('')}</div><p class="tiny-note">${state.yourChoice?'Ton vote est enregistré. Suspense…':'Choisis une personne !'}</p></div>`;
-   el.querySelectorAll('.vote-card').forEach(b=>b.onclick=()=>send({type:'vote',target:b.dataset.id}));
- }
+
+function keyboardHtml(dimLetters=[]){
+  const rows=['AZERTYUIOP','QSDFGHJKLM','WXCVBN'];
+  return `<div id="play-keyboard" class="play-keyboard ${keyboardOpen?'':'hidden'}" aria-label="Clavier de réponse">
+    <p class="keyboard-label">Touche les lettres pour deviner</p>
+    ${rows.map((row,i)=>`<div class="keyboard-row">${[...row].map(letter=>`<button type="button" data-key="${letter}" class="${dimLetters.includes(letter)?'dimmed':''}" aria-label="Lettre ${letter}">${letter}</button>`).join('')}${i===2?'<button type="button" data-key="BACK" class="key-wide" aria-label="Effacer une lettre">⌫</button>':''}</div>`).join('')}
+  </div>`;
 }
+function updateKeyboard(){
+  const field=$('guess-input'),panel=$('play-keyboard');
+  if(field)field.value=guessDraft;
+  if(panel)panel.classList.toggle('hidden',!keyboardOpen);
+  const toggle=$('keyboard-toggle');
+  if(toggle)toggle.setAttribute('aria-expanded',String(keyboardOpen));
+}
+function flashRound(game){
+  const parent=$('game-section');
+  if(!parent)return;
+  const card=document.createElement('div');
+  card.className='game-flash';card.dataset.game=game;
+  const emoji={draw:'🎨',quiz:'⚡',music:'🎵',vote:'🎉'}[game]||'🎲';
+  card.innerHTML=`<div><small>✦ NOUVELLE MANCHE ✦</small>${emoji}<div>${esc(gameNames[game]||'À TOI !')}</div></div>`;
+  parent.appendChild(card);
+  setTimeout(()=>card.remove(),950);
+}
+function renderGame(){
+  const el=$('game-section');
+  if(state.game==='draw'){
+    const artist=state.artistId===userId;
+    const artistName=state.players.find(p=>p.id===state.artistId)?.name||'Un joueur';
+    const solved=state.solved?.includes(userId);
+    const hint=!artist?`<div class="draw-hint"><span>${Number(state.wordLength||0)} lettres${state.hintLetter?' · commence par '+esc(state.hintLetter):''}</span></div>`:'';
+    const keyboard=!artist&&!solved?keyboardHtml(state.dimLetters||[]):'';
+    el.innerHTML=`<div class="game-inner draw-game">${roundHeader('🎨 DESSINE-MOI ÇA')}<h2 class="game-prompt">${artist?'À toi de dessiner !':`Devine le dessin de ${esc(artistName)} !`}</h2><p class="game-desc">${artist?`À dessiner : <strong>${esc(state.word)}</strong>`:'À toi de deviner !'}</p>${hint}<div class="canvas-shell"><canvas id="draw-canvas" class="draw-canvas" width="825" height="500" aria-label="Zone de dessin"></canvas></div>${artist?`<div class="tools"><span class="game-desc">Couleur :</span>${['#432ad0','#ef4782','#ffb841','#15a18d','#22263c'].map(c=>`<button type="button" aria-label="Couleur ${c}" class="swatch ${c===color?'active':''}" style="background:${c}" data-color="${c}"></button>`).join('')}<button class="video-button" id="clear-drawing" type="button">Effacer ↺</button></div>`:`<form id="guess-form" class="guess-form"><input id="guess-input" type="text" maxlength="40" required placeholder="${solved?'Bravo, trouvé !':'Tape le mot...'}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="none" readonly ${solved?'disabled':''}/><button id="keyboard-toggle" class="keyboard-trigger" type="button" aria-label="Ouvrir le clavier" aria-expanded="${keyboardOpen}" ${solved?'disabled':''}>⌨</button><button class="btn violet" type="submit" ${solved?'disabled':''}>${solved?'✓':'OK ↗'}</button></form>`}${keyboard}<div class="guess-feed">${state.guesses.slice(-5).map(g=>`<span class="guess-chip ${g.correct?'correct':''}"><strong>${esc(g.name)} :</strong> ${esc(g.text)}</span>`).join('')}</div></div>`;
+    fitDrawingCanvas();
+    $('draw-help-open').onclick=showDrawHelp;
+    if(artist){
+      wireDrawing();
+      el.querySelectorAll('.swatch').forEach(b=>b.onclick=()=>{color=b.dataset.color;el.querySelectorAll('.swatch').forEach(x=>x.classList.toggle('active',x===b))});
+      $('clear-drawing').onclick=()=>send({type:'clear'});
+    }else if(!solved){
+      const field=$('guess-input');
+      if(window.matchMedia('(min-width: 791px)').matches){field.readOnly=false;field.inputMode='text'}
+      field.value=guessDraft;
+      field.oninput=()=>guessDraft=field.value;
+      $('keyboard-toggle').onclick=()=>{keyboardOpen=!keyboardOpen;updateKeyboard()};
+      field.onclick=()=>{if(window.matchMedia('(max-width: 790px)').matches){keyboardOpen=true;updateKeyboard()}};
+      el.querySelectorAll('[data-key]').forEach(button=>button.onclick=()=>{
+        const letter=button.dataset.key;
+        guessDraft=letter==='BACK'?guessDraft.slice(0,-1):(guessDraft+letter).slice(0,40);
+        updateKeyboard();
+      });
+      $('guess-form').onsubmit=e=>{
+        e.preventDefault();
+        if(!guessDraft.trim())return;
+        send({type:'guess',value:guessDraft.trim()});
+        guessDraft='';keyboardOpen=false;updateKeyboard();
+      };
+    }
+  }else if(state.game==='quiz'||state.game==='music'){
+    const musical=state.game==='music';
+    const active=Date.now()<musicPlayedUntil;
+    const player=musical?`<div class="sound-stage ${active?'playing':''}"><div class="sound-disc ${active?'playing':''}" aria-hidden="true"></div><button type="button" id="music-play" class="sound-button">▶ Écouter l'extrait</button><div class="sound-bars" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div></div>`:'';
+    el.innerHTML=`<div class="game-inner ${musical?'music-game':'quiz-game'}">${roundHeader(musical?'🎵 BLIND TEST':'⚡ QUIZ ÉCLAIR')}${player}<h2 class="game-prompt">${esc(state.question)}</h2><div class="choice-grid">${state.choices.map((c,i)=>`<button class="choice-button ${state.yourChoice===i?'chosen':''}" data-index="${i}" ${state.yourChoice!=null?'disabled':''}><span>${'ABCD'[i]}</span> ${esc(c)}</button>`).join('')}</div><p class="tiny-note">${state.yourChoice==null?(musical?'Écoute puis choisis la bonne mélodie !':'Réponds vite pour marquer 100 points !'):'Réponse envoyée ! On attend les autres...'}</p></div>`;
+    el.querySelectorAll('.choice-button').forEach(b=>b.onclick=()=>send({type:'choice',index:Number(b.dataset.index)}));
+    if(musical)$('music-play').onclick=async()=>{
+      if(!window.PlayroomAudio){toast('Audio indisponible');return}
+      try{
+        const ms=await window.PlayroomAudio.play(state.melody,state.noteMs);
+        musicPlayedUntil=Date.now()+ms;
+        const stage=el.querySelector('.sound-stage'),disc=el.querySelector('.sound-disc');
+        stage?.classList.add('playing');disc?.classList.add('playing');
+        setTimeout(()=>{stage?.classList.remove('playing');disc?.classList.remove('playing')},ms);
+      }catch(e){toast('Impossible de lire la mélodie sur ce navigateur')}
+    };
+  }else if(state.game==='vote'){
+    const others=state.players.filter(p=>p.id!==userId);
+    el.innerHTML=`<div class="game-inner vote-game">${roundHeader('😂 QUI DE NOUS ?')}<h2 class="game-prompt">${esc(state.question)}</h2><div class="vote-grid">${others.map(p=>`<button class="vote-card ${state.yourChoice===p.id?'chosen':''}" data-id="${esc(p.id)}" ${state.yourChoice?'disabled':''}><span class="face">${avatar(p.id)}</span><span>${esc(p.name)}</span></button>`).join('')}</div><p class="tiny-note">${state.yourChoice?'Vote envoyé ! Suspense…':'Vote pour un ami !'}</p></div>`;
+    el.querySelectorAll('.vote-card').forEach(b=>b.onclick=()=>send({type:'vote',target:b.dataset.id}));
+  }
+}
+
 function renderResults(){
  let title='',desc='';
  if(state.game==='draw'){title='Le dessin est révélé !';desc=`La bonne réponse était <strong>${esc(state.word)}</strong>. ${state.guesses.filter(g=>g.correct).length} bonne(s) réponse(s) !`}
