@@ -17,6 +17,74 @@
 .game-picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:19px 0 14px;text-align:left}.pick-game{padding:14px;border:2px solid #ebe3f5;border-radius:16px;background:#fff;cursor:pointer;min-height:100px;text-align:left;white-space:normal}.pick-game strong{display:block;font:800 16px 'Outfit',sans-serif;margin:7px 0 3px}.pick-game small{font:500 12px 'DM Sans',sans-serif;color:#83788d}.pick-game.selected{border-color:#6947f7;background:#f0ebff;box-shadow:0 0 0 2px #6947f713}.duration-select{margin:14px 0 20px;display:flex;align-items:center;justify-content:center;gap:12px;font-size:13px;font-weight:800}.duration-select select{padding:9px 12px;border:1px solid #d9d0ec;border-radius:10px;background:white;font:inherit}.switch-game{color:#6947f7!important;border-color:#ccbaf7!important}
 @media(max-width:1100px){.room-shell{grid-template-columns:minmax(0,1fr) 265px;padding:18px;gap:14px}.side-column{padding:13px}.video-tile{min-height:95px}.game-section{padding:24px}.hero h1{font-size:76px}}
 @media(max-width:790px){.shell{width:min(100% - 32px,540px)}.topbar{padding:18px 0}.top-pill{display:none}.home-main{display:flex;flex-direction:column;align-items:stretch;gap:0}.hero{padding:32px 0 0}.hero h1{font-size:clamp(60px,15vw,89px);letter-spacing:-3px}.hero-lede{font-size:15px;margin:23px 0 32px}.create-row{flex-direction:column}.create-row input,.create-row .btn{width:100%}.hero-graphic{padding:45px 15px 65px}.play-preview{width:95%;margin:0}.preview-game{min-height:230px;padding:24px 13px}.preview-game strong{font-size:24px}.preview-avatars{padding:10px}.preview-avatars span{font-size:24px}.float-badge{font-size:10px;padding:10px}.f1{left:2px}.f2{right:0}.benefits{grid-template-columns:1fr;gap:17px;padding:25px 0}.room-header{height:65px;padding:0 15px}.room-header .brand{font-size:23px}.room-header .brand-mark{width:27px;height:27px;font-size:22px;border-radius:8px}.room-meta-label{display:none}.btn-ghost{font-size:11px}.room-shell{display:flex;flex-direction:column;padding:13px;gap:10px}.side-column{order:-1;background:transparent;border:0;padding:0;display:flex;flex-direction:column}.side-title{margin:0 0 7px;padding:0 5px}.video-grid{display:flex;gap:7px;overflow-x:auto}.video-tile{flex:0 0 75px;width:75px;height:78px;aspect-ratio:auto;min-height:0;border-radius:12px}.video-tile .avatar{font-size:30px}.video-actions{position:absolute;top:80px;right:18px;z-index:3;margin:0}.video-button{font-size:10px;padding:8px}.video-actions button:nth-child(2){display:none}.board-title,.scoreboard{display:none}.room-status{margin:15px 0 10px}.game-section{padding:19px;min-height:460px;border-radius:19px}.game-section:before{font-size:140px;top:-35px}.game-title{font-size:35px}.lobby-center .game-title{font-size:35px}.lobby-art{margin:25px 0 18px;font-size:50px}.game-prompt{font-size:27px}.choice-grid{grid-template-columns:1fr;margin-top:20px;gap:8px}.choice-button{min-height:64px;font-size:14px;padding:12px}.vote-grid{gap:8px}.vote-card{padding:13px 8px;font-size:14px;gap:7px}.vote-card .face{font-size:26px}.bottom-invite{margin:12px 0}.bottom-invite .btn{flex:1;white-space:normal;padding:12px 6px;font-size:11px}.clock{font-size:18px}.draw-canvas{aspect-ratio:1.1}.room-status{font-size:11px}.result-center{padding:17px 0}.result-icon{font-size:58px}}
+/* Mobile immersive game: the game owns the viewport; players and navigation remain compact. */
+.mobile-icon-btn{display:none;border:1px solid #e6dff0;border-radius:12px;background:#faf7ff;color:#44316f;min-width:38px;min-height:38px;align-items:center;justify-content:center;font:800 21px 'Outfit',sans-serif;cursor:pointer}
+.score-sheet.hidden{display:none!important}
+.score-sheet{position:fixed;inset:0;z-index:150;display:flex;align-items:flex-end;justify-content:center}
+.score-sheet-backdrop{position:absolute;inset:0;background:#1d1538a8}
+.score-sheet-panel{position:relative;width:min(100%,460px);border-radius:24px 24px 0 0;background:white;padding:22px max(20px,env(safe-area-inset-right)) calc(28px + env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left));box-shadow:0 -8px 40px #130c3828;max-height:70dvh;overflow:auto}
+.score-sheet-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;font-size:16px}
+.score-sheet-top .mobile-icon-btn{display:inline-flex}
+.score-sheet .scoreboard{display:flex!important}
+@media(max-width:790px){
+ html,body{min-height:100%;overscroll-behavior:none}
+ body:has(#room-screen:not(.hidden)){overflow:hidden}
+ #room-screen{height:100dvh;min-height:0;display:flex;flex-direction:column;overflow:hidden;overscroll-behavior:none;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+ .room-header{height:52px;min-height:52px;flex:none;padding-left:max(15px,env(safe-area-inset-left));padding-right:max(15px,env(safe-area-inset-right));gap:7px}
+ .room-header .brand{font-size:19px;letter-spacing:-.8px}
+ .room-header .brand-mark{width:25px;height:25px;font-size:20px;margin-right:5px}
+ .room-meta{gap:6px;margin-left:auto}
+ .code-pill{padding:8px 7px;font-size:10px;letter-spacing:1px;border-radius:9px;min-height:38px}
+ .code-pill span{display:none}
+ .mobile-icon-btn{display:inline-flex;min-width:38px;min-height:38px}
+ .btn-ghost{font-size:11px;white-space:nowrap;padding:6px}
+ .btn-ghost span{font-size:16px;margin-left:2px}
+ .room-shell{flex:1;min-height:0;display:flex;flex-direction:column;padding:4px max(8px,env(safe-area-inset-right)) 6px max(8px,env(safe-area-inset-left));gap:5px;overflow:hidden}
+ .main-column{order:0;flex:1;min-height:0;display:flex;flex-direction:column}
+ .room-status{min-height:27px;margin:0 5px 4px;flex:none;font-size:10px}
+ .room-status .round-count{font-size:10px}
+ .game-section{flex:1;min-height:0;padding:15px 14px 18px;border-radius:18px;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+ .game-section:before{font-size:100px;top:-25px}
+ .game-inner{min-height:100%}
+ .game-title{font-size:clamp(25px,7.5vw,36px)}
+ .game-prompt{font-size:clamp(21px,6vw,30px);margin:15px 0 12px}
+ .game-desc{font-size:13px}
+ .lobby-art{font-size:40px;margin:13px 0}
+ .lobby-center .game-title{font-size:30px}
+ .lobby-count{margin:8px 0 12px;padding:8px 13px}
+ .game-picker{gap:7px;margin:12px 0}
+ .pick-game{min-height:76px;padding:11px;border-radius:14px}
+ .pick-game strong{font-size:14px;margin:4px 0 2px}
+ .pick-game small{font-size:10px}
+ .duration-select{margin:10px 0}
+ .choice-grid{margin-top:16px;gap:9px}
+ .choice-button{min-height:60px}
+ .vote-grid{margin:14px 0}
+ .canvas-shell{margin-top:12px}
+ .draw-canvas{aspect-ratio:1.25}
+ .tools{flex-wrap:wrap}
+ .bottom-invite{flex:none;display:flex;margin:5px 0 0;gap:5px}
+ .bottom-invite #share-btn,.bottom-invite #whatsapp-btn{display:none}
+ .bottom-invite #switch-game:not(.hidden){display:block;min-height:38px;flex:1}
+ .side-column{order:1;flex:none;display:flex;flex-direction:row;align-items:center;gap:9px;padding:5px 4px 0;border-top:1px solid #e6e0f0;border-radius:0}
+ .side-title,.side-column .board-title,.side-column .scoreboard{display:none!important}
+ .video-grid{flex:1;min-width:0;display:flex;gap:5px;overflow-x:auto;scrollbar-width:none}
+ .video-tile{width:49px;height:49px;flex:0 0 49px;border-radius:11px}
+ .video-tile .avatar{font-size:25px}
+ .video-tile .player-label{font-size:8px;left:2px;bottom:2px;padding:2px 3px;max-width:45px;overflow:hidden;text-overflow:ellipsis}
+ .video-actions{position:static;flex:none;margin:0;display:flex;gap:5px;flex-wrap:nowrap;align-items:center}
+ .video-button{min-height:38px;padding:7px;font-size:0;white-space:nowrap}
+ #camera-toggle{font-size:0}
+ #camera-toggle::before{content:'📷';font-size:19px}
+ #mic-toggle{font-size:0}
+ #mic-toggle::before{content:'🎙️';font-size:19px}
+ #mic-toggle:not(:disabled){display:inline-flex}
+ .score-sheet .scoreboard{display:flex!important}
+ .result-center{padding:18px 0}
+ .result-score{font-size:clamp(28px,7vw,40px)}
+ .sketch-tools,.tools,.vote-card,.choice-button,.btn{touch-action:manipulation}
+ .choice-button,.vote-card,.pick-game{min-height:48px}
+}
 @media(max-width:400px){.room-header .brand{font-size:20px}.code-pill{padding:8px;font-size:11px}.btn-ghost{font-size:10px}.join-line{flex-wrap:wrap}.game-section{padding:14px}.hero h1{font-size:56px}}
 </style>
   <title>Playroom — La soirée commence ici.</title>
@@ -55,7 +123,7 @@
   <div id="room-screen" class="room-screen hidden">
     <header class="room-header">
       <div class="brand"><span class="brand-mark">✳</span> playroom<span class="brand-period">.</span></div>
-      <div class="room-meta"><span class="room-meta-label">TON SALON</span><button id="copy-code" class="code-pill" title="Copier le lien">······ <span>▣</span></button></div>
+      <div class="room-meta"><span class="room-meta-label">TON SALON</span><button id="copy-code" class="code-pill" title="Copier le lien">······ <span>▣</span></button><button id="score-toggle" class="mobile-icon-btn" type="button" aria-label="Voir le classement" title="Classement">🏆</button><button id="fullscreen-toggle" class="mobile-icon-btn" type="button" aria-label="Activer le plein écran" title="Plein écran">⛶</button></div>
       <button id="leave-btn" class="btn-ghost">Quitter <span>×</span></button>
     </header>
     <main class="room-shell">
@@ -73,6 +141,7 @@
       </aside>
     </main>
   </div>
+  <div id="score-sheet" class="score-sheet hidden" role="dialog" aria-modal="true" aria-labelledby="score-sheet-title"><div class="score-sheet-backdrop" id="score-backdrop"></div><div class="score-sheet-panel"><div class="score-sheet-top"><strong id="score-sheet-title">🏆 Classement de la soirée</strong><button id="score-close" class="mobile-icon-btn" aria-label="Fermer les scores">×</button></div><div id="score-sheet-content" class="scoreboard"></div></div></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script>/* Playroom V1 — shared web UI + platform-neutral room protocol. */
 'use strict';
@@ -129,6 +198,25 @@ $('create-form').addEventListener('submit',async e=>{
 $('join-form').addEventListener('submit',e=>{e.preventDefault();const code=$('join-code').value.replace(/[^A-Za-z0-9]/g,'').toUpperCase();if(!code){toast('Entre un code de salon');return}enterRoom(code)});
 $('leave-btn').addEventListener('click',()=>{if(ws)ws.close();stopVideo();history.replaceState({},'',location.pathname);location.reload()});
 $('copy-code').addEventListener('click',()=>copyRoom());
+$('score-toggle').addEventListener('click',()=>{$('score-sheet').classList.remove('hidden');$('score-close').focus()});
+$('score-close').addEventListener('click',closeScores);
+$('score-backdrop').addEventListener('click',closeScores);
+function closeScores(){$('score-sheet').classList.add('hidden');$('score-toggle').focus()}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('score-sheet').classList.contains('hidden'))closeScores()});
+async function toggleFullscreen(){
+  const root=$('room-screen');
+  try {
+    if(document.fullscreenElement){await document.exitFullscreen();return}
+    if(root.requestFullscreen){await root.requestFullscreen();return}
+    toast('Plein écran indisponible ici : ajoute Playroom à ton écran d’accueil.')
+  }catch(e){toast('Plein écran bloqué par le navigateur : essaie l’installation sur l’écran d’accueil.')}
+}
+$('fullscreen-toggle').addEventListener('click',toggleFullscreen);
+document.addEventListener('fullscreenchange',()=>{
+  const full=!!document.fullscreenElement;
+  $('fullscreen-toggle').textContent=full?'⤢':'⛶';
+  $('fullscreen-toggle').setAttribute('aria-label',full?'Quitter le plein écran':'Activer le plein écran');
+});
 $('share-btn').addEventListener('click',shareRoom);
 $('switch-game').addEventListener('click',()=>{if(confirm('Revenir au salon pour choisir un jeu ? Les points sont conservés.'))send({type:'lobby'})});
 $('whatsapp-btn').addEventListener('click',()=>{const text=`Viens jouer avec nous sur Playroom ! 🎲 ${urlForRoom()}`;window.open('https://wa.me/?text='+encodeURIComponent(text),'_blank','noopener')});
@@ -169,7 +257,7 @@ function renderPlayers(){
  }
  for(const pid of [...peers.keys()]){if(!state.players.some(p=>p.id===pid&&p.media)){peers.get(pid).close();peers.delete(pid);remoteStreams.delete(pid)}}
 }
-function renderScore(){let ps=[...state.players].sort((a,b)=>b.score-a.score);$('scoreboard').innerHTML=ps.map((p,i)=>`<div class="score-line"><span class="rank">${i===0?'🥇':String(i+1).padStart(2,'0')}</span><span class="score-name">${avatar(p.id)} ${esc(p.name)}${p.id===userId?' (toi)':''}</span><span class="points">${p.score} pt</span></div>`).join('')}
+function renderScore(){let ps=[...state.players].sort((a,b)=>b.score-a.score);$('scoreboard').innerHTML=ps.map((p,i)=>`<div class="score-line"><span class="rank">${i===0?'🥇':String(i+1).padStart(2,'0')}</span><span class="score-name">${avatar(p.id)} ${esc(p.name)}${p.id===userId?' (toi)':''}</span><span class="points">${p.score} pt</span></div>`).join('');$('score-sheet-content').innerHTML=$('scoreboard').innerHTML}
 
 function renderLobby(){
   const host=state.host===userId, canStart=state.players.length>=2;
