@@ -113,6 +113,30 @@
  .game-section .choice-button{min-height:clamp(70px,11dvh,102px)}
  .game-section .vote-card{min-height:clamp(70px,11dvh,102px)}
 }
+
+.account-host{display:flex;align-items:center;justify-content:flex-end;min-height:36px}
+.account-login,.account-profile{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid #ded5ef;border-radius:999px;padding:8px 12px;background:white;color:#46336d;font:800 12px 'DM Sans',sans-serif;text-decoration:none;white-space:nowrap;min-height:38px}
+.account-login:hover,.account-profile button:hover{background:#f1eaff}
+.google-letter{display:grid;place-items:center;border-radius:50%;background:#f1eaff;color:#6947f7;font:900 17px 'Outfit';width:24px;height:24px}
+.account-profile{gap:6px;padding:5px 8px}
+.account-face{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:#6947f7;color:#fff;font-weight:900}
+.account-profile button{border:0;border-radius:999px;min-width:30px;min-height:30px;background:transparent;color:#604b85;cursor:pointer}
+.account-guest{font-size:11px;color:#8c849e}
+@media(max-width:790px){
+ .topbar{gap:7px}
+ #home-account .account-login{font-size:11px;padding:6px 9px}
+ #room-account .account-login{font-size:0;padding:5px 7px;min-width:38px;min-height:38px}
+ #room-account .account-login .google-letter{font-size:17px}
+ #room-account .account-profile{padding:4px}
+ #room-account .account-profile .account-name{display:none}
+ #room-account .account-profile button{min-width:25px;min-height:25px}
+ #room-account .account-guest{display:none}
+}
+@media(max-width:390px){
+ #room-account .account-profile{max-width:64px}
+ .room-header .brand{font-size:17px}
+ .room-header .room-meta{gap:4px}
+}
 </style>
   <title>Playroom — La soirée commence ici.</title>
 </head>
@@ -120,7 +144,7 @@
   <div id="home" class="home-screen">
     <header class="topbar shell">
       <div class="brand"><span class="brand-mark">✳</span> playroom<span class="brand-period">.</span></div>
-      <span class="top-pill">✦ Soirées entre amis, réinventées</span>
+      <span class="top-pill">✦ Soirées entre amis, réinventées</span><div id="home-account" class="account-host"></div>
     </header>
     <main class="shell home-main">
       <section class="hero">
@@ -150,7 +174,7 @@
   <div id="room-screen" class="room-screen hidden">
     <header class="room-header">
       <div class="brand"><span class="brand-mark">✳</span> playroom<span class="brand-period">.</span></div>
-      <div class="room-meta"><span class="room-meta-label">TON SALON</span><button id="copy-code" class="code-pill" title="Copier le lien">······ <span>▣</span></button><button id="score-toggle" class="mobile-icon-btn" type="button" aria-label="Voir le classement" title="Classement">🏆</button><button id="fullscreen-toggle" class="mobile-icon-btn" type="button" aria-label="Activer le plein écran" title="Plein écran">⛶</button></div>
+      <div class="room-meta"><span class="room-meta-label">TON SALON</span><button id="copy-code" class="code-pill" title="Copier le lien">······ <span>▣</span></button><button id="score-toggle" class="mobile-icon-btn" type="button" aria-label="Voir le classement" title="Classement">🏆</button><button id="fullscreen-toggle" class="mobile-icon-btn" type="button" aria-label="Activer le plein écran" title="Plein écran">⛶</button><div id="room-account" class="account-host"></div></div>
       <button id="leave-btn" class="btn-ghost">Quitter <span>×</span></button>
     </header>
     <main class="room-shell">
@@ -365,6 +389,32 @@ function setVideoFor(id,stream,muted=false){const tile=[...document.querySelecto
 function connectionFor(id){if(peers.has(id))return peers.get(id);const pc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'}]});peers.set(id,pc);localStream?.getTracks().forEach(t=>pc.addTrack(t,localStream));pc.onicecandidate=e=>{if(e.candidate)send({type:'signal',target:id,data:{ice:e.candidate.toJSON()}})};pc.ontrack=e=>{const stream=e.streams?.[0]||new MediaStream([e.track]);remoteStreams.set(id,stream);setVideoFor(id,stream)};pc.onconnectionstatechange=()=>{if(['failed','closed'].includes(pc.connectionState)){pc.close();peers.delete(id)}};return pc}
 async function createOffer(id){if(!localStream)return;const pc=connectionFor(id);if(pc.signalingState!=='stable')return;const offer=await pc.createOffer();await pc.setLocalDescription(offer);send({type:'signal',target:id,data:{description:pc.localDescription.toJSON()}})}
 async function onSignal(id,data){if(!localStream)return;try{const pc=connectionFor(id);if(data.description){await pc.setRemoteDescription(data.description);if(data.description.type==='offer'){const answer=await pc.createAnswer();await pc.setLocalDescription(answer);send({type:'signal',target:id,data:{description:pc.localDescription.toJSON()}})}const pending=pendingCandidates.get(id)||[];for(const candidate of pending)await pc.addIceCandidate(candidate);pendingCandidates.delete(id)}else if(data.ice){if(pc.remoteDescription)await pc.addIceCandidate(data.ice);else pendingCandidates.set(id,[...(pendingCandidates.get(id)||[]),data.ice])}}catch(e){console.warn('WebRTC signal failed:',e.message)}}
+async function syncAccount(){
+ try{
+   const response=await fetch('/api/me',{cache:'no-store',credentials:'same-origin'});
+   if(!response.ok)return;
+   const data=await response.json();
+   for(const hostId of ['home-account','room-account']){
+     const host=$(hostId);
+     if(!host)continue;
+     const next=encodeURIComponent(location.pathname+location.search);
+     if(data.user){
+       const initial=(data.user.display_name||'J').trim().charAt(0).toUpperCase();
+       host.innerHTML=`<div class="account-profile"><span class="account-face">${esc(initial)}</span><span class="account-name">${esc(data.user.display_name)}</span><button type="button" class="account-logout" aria-label="Se déconnecter de Google" title="Déconnexion">↪</button></div>`;
+       host.querySelector('.account-logout').onclick=async ()=>{
+         const result=await fetch('/auth/logout',{method:'POST',credentials:'same-origin'});
+         if(result.ok){toast('Déconnecté de Google');syncAccount()}else toast('Impossible de se déconnecter');
+       };
+     }else if(data.loginEnabled){
+       host.innerHTML=`<a class="account-login" href="/auth/google?next=${next}"><span class="google-letter">G</span> Se connecter</a>`;
+     }else{
+       host.innerHTML='<span class="account-guest">Invité</span>';
+     }
+   }
+   if(data.user&&!$('nickname').value.trim())$('nickname').value=data.user.display_name.slice(0,20);
+ }catch(e){console.warn('Compte temporairement indisponible',e)}
+}
+syncAccount();
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
 </script>
 </body>
