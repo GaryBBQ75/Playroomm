@@ -360,6 +360,7 @@ async def shutdown(app):
 def create_app():
     app = web.Application(client_max_size=100000)
     app.router.add_get("/",index)
+    app.router.add_get("/healthz", lambda _: web.json_response({"status": "ok"}))
     app.router.add_post("/api/rooms",api_create)
     app.router.add_get("/api/rooms/{code}",api_room)
     app.router.add_get("/ws",socket_handler)
