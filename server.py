@@ -9,6 +9,10 @@ import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path
 from aiohttp import web, WSMsgType
+from auth import get_user, install_auth
+import logging
+
+LOGGER = logging.getLogger(__name__)
 
 ROOT = Path(__file__).parent
 PORT = int(os.getenv("PORT", "8080"))
@@ -49,6 +53,7 @@ class Player:
     score: int = 0
     media: bool = False
     answered: bool = False
+    user_id: str | None = None
 
 @dataclass
 class Room:
@@ -74,6 +79,7 @@ class Room:
     playlist: list = field(default_factory=lambda: ["draw", "quiz", "vote"])
     mode: str = "mix"
     resume_scores: bool = False
+    db_pool: object = field(default=None, repr=False)
     updated: float = field(default_factory=time.time)
 
     def view(self, player_id):
@@ -137,6 +143,7 @@ class Room:
             p.answered = False
         if self.total_rounds > 0 and self.round_number >= self.total_rounds:
             self.status, self.game, self.ends_at = "finished", "", 0
+            await self.save_match()
             await self.broadcast()
             return
         self.status = "playing"
@@ -153,6 +160,27 @@ class Room:
         self.ends_at = time.time() + (60 if self.game == "draw" else ROUND_TIME)
         await self.broadcast()
         self.timer = asyncio.create_task(self._finish_later(self.generation))
+
+    async def save_match(self):
+        """Persist completed game scores, preserving logged-in user association."""
+        if not self.db_pool:
+            return
+        try:
+            async with self.db_pool.acquire() as conn:
+                async with conn.transaction():
+                    match_id = await conn.fetchval(
+                        "INSERT INTO matches (room_code, mode, rounds) VALUES ($1,$2,$3) RETURNING id",
+                        self.code, self.mode, self.round_number,
+                    )
+                    for p in self.players.values():
+                        await conn.execute(
+                            """INSERT INTO match_results (match_id, user_id, player_name, score)
+                               VALUES ($1, $2::uuid, $3, $4)""",
+                            match_id, p.user_id, p.name, p.score,
+                        )
+        except Exception:
+            # Persistence should never make an otherwise working game unplayable.
+            LOGGER.exception("Could not save results for room %s", self.code)
 
     async def _finish_later(self, generation):
         try:
@@ -281,7 +309,7 @@ async def api_create(request):
     for _ in range(10):
         code = "".join(secrets.choice("ABCDEFGHJKLMNPQRSTUVWXYZ23456789") for _ in range(6))
         if code not in ROOMS:
-            ROOMS[code] = Room(code)
+            ROOMS[code] = Room(code, db_pool=request.app.get("db"))
             return web.json_response({"code":code,"url":str(request.url.with_path("/").with_query({"room":code}))})
     raise web.HTTPServiceUnavailable()
 
@@ -311,7 +339,12 @@ async def socket_handler(request):
         platform = hello.get("platform","web")
         if platform not in ("web","android","discord","telegram","tiktok"):
             platform = "web"
-        player = Player(secrets.token_urlsafe(10), clean(hello.get("name"), 20) or "Invité", ws, platform)
+        account = await get_user(request)
+        player = Player(
+            secrets.token_urlsafe(10),
+            clean(hello.get("name"), 20) or (clean(account["display_name"], 20) if account else "Invité"),
+            ws, platform, user_id=account["id"] if account else None,
+        )
         room.players[player.id] = player
         if not room.host:
             room.host = player.id
@@ -361,6 +394,7 @@ def create_app():
     app = web.Application(client_max_size=100000)
     app.router.add_get("/",index)
     app.router.add_get("/healthz", lambda _: web.json_response({"status": "ok"}))
+    install_auth(app)
     app.router.add_post("/api/rooms",api_create)
     app.router.add_get("/api/rooms/{code}",api_room)
     app.router.add_get("/ws",socket_handler)
