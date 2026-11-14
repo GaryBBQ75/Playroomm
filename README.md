@@ -31,6 +31,19 @@ Le formulaire `/api/me` fonctionne même si Google n'est pas configuré : il ret
 
 Le compte Google est facultatif : il ajoute un profil persistant et permet de retrouver ses scores de parties terminées via `GET /api/me/history`. La déconnexion passe par `POST /auth/logout`.
 
+## Déploiement via GitHub Actions (après configuration initiale Coolify)
+
+Un workflow manuel [Deploy Playroom to Coolify](https://github.com/GaryBBQ75/Playroomm/actions/workflows/deploy-coolify.yml) permet de lancer et de vérifier un déploiement, **une fois la ressource Docker Compose créée sur Coolify**.
+
+Dans **GitHub → Settings → Environments**, créer un environnement `production` et lui ajouter les secrets :
+- `COOLIFY_URL` : URL HTTPS de l'installation Coolify, sans `/api/v1`
+- `COOLIFY_API_TOKEN` : token Coolify avec permission limitée `deploy`
+- `COOLIFY_RESOURCE_UUID` : UUID de la ressource Playroom (Docker Compose) dans Coolify
+
+Ajouter aussi la variable d'environnement GitHub `PLAYROOM_PUBLIC_URL` avec l'URL HTTPS publique et définitive du jeu. Elle servira à valider `/readyz` après déploiement.
+
+Le workflow se lance depuis **Actions → Deploy Playroom to Coolify → Run workflow**. Les identifiants PostgreSQL et Google OAuth sont configurés **dans les variables d'environnement Coolify de la ressource**, pas dans GitHub. Les secrets ne doivent jamais être envoyés dans un ticket ou un chat.
+
 ## Démarrer en local
 
 ```bash
