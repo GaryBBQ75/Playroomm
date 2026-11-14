@@ -137,6 +137,45 @@
  .room-header .brand{font-size:17px}
  .room-header .room-meta{gap:4px}
 }
+
+/* Immersive drawing: keep instructions off the canvas, prioritize touch area. */
+.draw-help-dialog.hidden{display:none!important}
+.draw-help-dialog{position:fixed;inset:0;z-index:170;display:grid;place-items:center;padding:16px}
+.draw-help-backdrop{position:absolute;inset:0;background:#19112dbb}
+.draw-help-panel{position:relative;width:min(100%,380px);background:#fffaf3;padding:25px;border-radius:24px;text-align:center;box-shadow:0 16px 50px #170d303c}
+.draw-help-panel h2{font:900 25px 'Outfit',sans-serif;margin:8px 0}
+.draw-help-panel p{font-size:14px;color:#65596d;line-height:1.5}
+.draw-help-panel button{width:100%;min-height:46px;margin-top:14px}
+.draw-help-btn{margin-left:auto;border:1px solid #dcd2ed;border-radius:50%;background:#fff;color:#6947f7;font-weight:900;font-size:17px;width:36px;height:36px;flex:none;cursor:pointer}
+@media(max-width:790px){
+ #room-screen:has(.draw-game) .room-status{display:none}
+ #room-screen:has(.draw-game) .game-section{padding:7px;overflow:hidden}
+ #room-screen:has(.draw-game) .game-section:before{display:none}
+ .draw-game{height:100%;min-height:0;display:flex;flex-direction:column;gap:6px}
+ .draw-game .round-head{flex:none;gap:6px;min-height:38px}
+ .draw-game .round-head .eyebrow-game{font-size:10px;padding:8px}
+ .draw-game .round-head #clock{font-size:18px;padding:6px 9px}
+ .draw-game .game-prompt{display:none}
+ .draw-game>.game-desc{margin:0;flex:none;font-size:12px;color:#4b3b62;font-weight:800}
+ .draw-game .canvas-shell{flex:1;min-height:0;margin:0;border:1px solid #e1daec;border-radius:12px;position:relative}
+ .draw-game .draw-canvas{position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto;display:block;touch-action:none}
+ .draw-game .tools{flex:none;margin:0;display:flex;gap:6px;flex-wrap:nowrap;align-items:center;justify-content:center}
+ .draw-game .tools .game-desc{display:none}
+ .draw-game .swatch{width:30px;height:30px;min-width:30px;min-height:30px}
+ .draw-game #clear-drawing{padding:8px;font-size:11px;min-height:38px}
+ .draw-game .guess-form{flex:none;margin:0;min-height:46px;gap:6px}
+ .draw-game .guess-form input{min-height:46px;font-size:16px;padding:9px 11px}
+ .draw-game .guess-form button{min-height:46px;padding:9px 11px}
+ .draw-game .guess-feed{flex:none;display:flex;flex-wrap:nowrap;margin:0;gap:5px;max-height:25px;overflow-x:auto;scrollbar-width:none}
+ .draw-game .guess-feed:empty{display:none}
+ .draw-game .guess-chip{flex:none;font-size:10px;white-space:nowrap;padding:4px 8px}
+}
+@media(max-width:790px) and (orientation:landscape){
+ .draw-game .round-head{min-height:31px}
+ .draw-game .guess-form input,.draw-game .guess-form button{min-height:40px}
+ .draw-game .guess-form{min-height:40px}
+ .draw-game .tools{gap:4px}
+}
 </style>
   <title>Playroom — La soirée commence ici.</title>
 </head>
@@ -193,6 +232,7 @@
     </main>
   </div>
   <div id="score-sheet" class="score-sheet hidden" role="dialog" aria-modal="true" aria-labelledby="score-sheet-title"><div class="score-sheet-backdrop" id="score-backdrop"></div><div class="score-sheet-panel"><div class="score-sheet-top"><strong id="score-sheet-title">🏆 Classement de la soirée</strong><button id="score-close" class="mobile-icon-btn" aria-label="Fermer les scores">×</button></div><div id="score-sheet-content" class="scoreboard"></div></div></div>
+  <div id="draw-help-dialog" class="draw-help-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="draw-help-title"><div id="draw-help-backdrop" class="draw-help-backdrop"></div><div class="draw-help-panel"><div style="font-size:44px">🎨</div><h2 id="draw-help-title">Dessine-moi ça</h2><p id="draw-help-content">Dessine ou devine le mot avant la fin du chrono.</p><button id="draw-help-close" class="btn primary" type="button">Jouer !</button></div></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script>/* Playroom V1 — shared web UI + platform-neutral room protocol. */
 'use strict';
@@ -332,15 +372,16 @@ function renderLobby(){
     $('start-game').onclick=()=>send({type:'start',game:selectedGame,rounds:selectedRounds});
   }
 }
-function roundHeader(text){return `<div class="round-head"><span class="eyebrow-game">✦ ${text}</span><span id="clock" class="clock">--:--</span></div>`}
+function roundHeader(text){return `<div class="round-head"><span class="eyebrow-game">✦ ${text}</span>${state?.game==='draw'?'<button id="draw-help-open" type="button" class="draw-help-btn" aria-label="Voir les règles">?</button>':''}<span id="clock" class="clock">--:--</span></div>`}
 function renderGame(){
  const el=$('game-section');
  if(state.game==='draw'){
    const artist=state.artistId===userId;
    const artistName=state.players.find(p=>p.id===state.artistId)?.name||'Un joueur';
    const solved=state.solved?.includes(userId);
-   el.innerHTML=`<div class="game-inner">${roundHeader('🎨 DESSINE-MOI ÇA')}<h2 class="game-prompt">${artist?'À toi de dessiner !':`Devine le dessin de ${esc(artistName)} !`}</h2><p class="game-desc">${artist?`Mot secret : <strong>${esc(state.word)}</strong>. Ne le dis pas !`:'Observe bien et sois le premier à trouver le mot.'}</p><div class="canvas-shell"><canvas id="draw-canvas" class="draw-canvas" width="825" height="500" aria-label="Zone de dessin"></canvas></div>${artist?`<div class="tools"><span class="game-desc">Couleur :</span>${['#432ad0','#ef4782','#ffb841','#15a18d','#22263c'].map(c=>`<button aria-label="Couleur ${c}" class="swatch ${c===color?'active':''}" style="background:${c}" data-color="${c}"></button>`).join('')}<button class="video-button" id="clear-drawing">Effacer ↺</button></div>`:`<form id="guess-form" class="guess-form"><input type="text" maxlength="75" required placeholder="Ton idée…" autocomplete="off" ${solved?'disabled':''}/><button class="btn violet" ${solved?'disabled':''}>${solved?'Trouvé !':'Valider ↗'}</button></form>`}<div class="guess-feed">${state.guesses.map(g=>`<span class="guess-chip ${g.correct?'correct':''}"><strong>${esc(g.name)} :</strong> ${esc(g.text)}</span>`).join('')}</div></div>`;
+   el.innerHTML=`<div class="game-inner draw-game">${roundHeader('🎨 DESSINE-MOI ÇA')}<h2 class="game-prompt">${artist?'À toi de dessiner !':`Devine le dessin de ${esc(artistName)} !`}</h2><p class="game-desc">${artist?`Mot secret : <strong>${esc(state.word)}</strong>. Ne le dis pas !`:'Observe bien et sois le premier à trouver le mot.'}</p><div class="canvas-shell"><canvas id="draw-canvas" class="draw-canvas" width="825" height="500" aria-label="Zone de dessin"></canvas></div>${artist?`<div class="tools"><span class="game-desc">Couleur :</span>${['#432ad0','#ef4782','#ffb841','#15a18d','#22263c'].map(c=>`<button aria-label="Couleur ${c}" class="swatch ${c===color?'active':''}" style="background:${c}" data-color="${c}"></button>`).join('')}<button class="video-button" id="clear-drawing">Effacer ↺</button></div>`:`<form id="guess-form" class="guess-form"><input type="text" maxlength="75" required placeholder="Ton idée…" autocomplete="off" ${solved?'disabled':''}/><button class="btn violet" ${solved?'disabled':''}>${solved?'Trouvé !':'Valider ↗'}</button></form>`}<div class="guess-feed">${state.guesses.map(g=>`<span class="guess-chip ${g.correct?'correct':''}"><strong>${esc(g.name)} :</strong> ${esc(g.text)}</span>`).join('')}</div></div>`;
    paintAll();
+   $('draw-help-open').onclick=showDrawHelp;
    if(artist){wireDrawing();el.querySelectorAll('.swatch').forEach(b=>b.onclick=()=>{color=b.dataset.color;el.querySelectorAll('.swatch').forEach(x=>x.classList.toggle('active',x===b))});$('clear-drawing').onclick=()=>send({type:'clear'})}
    else if(!solved)$('guess-form').onsubmit=e=>{e.preventDefault();const input=e.currentTarget.querySelector('input');send({type:'guess',value:input.value});input.value=''};
  } else if(state.game==='quiz'){
@@ -371,6 +412,10 @@ function renderFinished(){
  if($('restart-game'))$('restart-game').onclick=()=>send({type:'start',rounds:state.totalRounds,game:state.mode});
 }
 function updateCountdown(){if(!state?.endsAt)return;let sec=Math.max(0,Math.ceil((state.endsAt-Date.now())/1000));const clock=$('clock');if(clock){clock.textContent=`${String(Math.floor(sec/60)).padStart(2,'0')}:${String(sec%60).padStart(2,'0')}`;clock.classList.toggle('urgent',sec<=10)}const bar=$('results-progress');if(bar)bar.style.width=`${Math.min(100,Math.max(0,sec/7*100))}%`}
+function showDrawHelp(){const isArtist=state?.artistId===userId; $('draw-help-content').textContent=isArtist?'Dessine le mot secret avec ton doigt. Les autres doivent deviner avant la fin du temps !':'Regarde le dessin et écris ta réponse dans le champ sous le canvas. Sois le premier à trouver !';$('draw-help-dialog').classList.remove('hidden');$('draw-help-close').focus()}
+function closeDrawHelp(){$('draw-help-dialog').classList.add('hidden')}
+$('draw-help-close').onclick=closeDrawHelp;
+$('draw-help-backdrop').onclick=closeDrawHelp;
 function canvas(){return $('draw-canvas')}
 function ctx(){return canvas()?.getContext('2d')}
 function paintStroke(stroke){const c=canvas();if(!c||!stroke?.points?.length)return;const x=ctx();x.strokeStyle=stroke.color||'#432ad0';x.lineWidth=7;x.lineCap='round';x.lineJoin='round';x.beginPath();stroke.points.forEach(([px,py],i)=>{if(i===0)x.moveTo(px*c.width,py*c.height);else x.lineTo(px*c.width,py*c.height)});if(stroke.points.length===1)x.lineTo(stroke.points[0][0]*c.width+.1,stroke.points[0][1]*c.height+.1);x.stroke()}
