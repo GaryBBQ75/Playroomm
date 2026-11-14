@@ -525,7 +525,37 @@ function ctx(){return canvas()?.getContext('2d')}
 function paintStroke(stroke){const c=canvas();if(!c||!stroke?.points?.length)return;const x=ctx();x.strokeStyle=stroke.color||'#432ad0';x.lineWidth=7;x.lineCap='round';x.lineJoin='round';x.beginPath();stroke.points.forEach(([px,py],i)=>{if(i===0)x.moveTo(px*c.width,py*c.height);else x.lineTo(px*c.width,py*c.height)});if(stroke.points.length===1)x.lineTo(stroke.points[0][0]*c.width+.1,stroke.points[0][1]*c.height+.1);x.stroke()}
 function clearCanvas(){const c=canvas();if(c)c.getContext('2d').clearRect(0,0,c.width,c.height)}
 function paintAll(){clearCanvas();for(const stroke of state.strokes||[])paintStroke(stroke)}
-function wireDrawing(){const c=canvas();if(!c)return;let dragging=false,points=[];const pos=e=>{const r=c.getBoundingClientRect();return [Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)),Math.max(0,Math.min(1,(e.clientY-r.top)/r.height))]};c.onpointerdown=e=>{dragging=true;points=[pos(e)];c.setPointerCapture(e.pointerId)};c.onpointermove=e=>{if(!dragging)return;let pt=pos(e);const prev=points[points.length-1];if(Math.hypot((pt[0]-prev[0]),(pt[1]-prev[1]))>.004){points.push(pt);paintAll();paintStroke({points,color})}};c.onpointerup=()=>{if(!dragging)return;dragging=false;const sampled=points.length>40?points.filter((_,i)=>i%Math.ceil(points.length/40)===0).slice(0,40):points;send({type:'draw',points:sampled,color});if(state.strokes)state.strokes.push({points:sampled,color})};c.onpointercancel=c.onpointerup}
+function wireDrawing(){
+ const c=canvas();if(!c)return;
+ let dragging=false,points=[],penColor=color;
+ const pos=e=>{const r=c.getBoundingClientRect();return [Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)),Math.max(0,Math.min(1,(e.clientY-r.top)/r.height))]};
+ c.onpointerdown=e=>{
+   if(e.pointerType==='mouse'&&e.button!==0)return;
+   dragging=true;penColor=color;points=[pos(e)];
+   try{c.setPointerCapture(e.pointerId)}catch(_){}
+ };
+ c.onpointermove=e=>{
+   if(!dragging)return;
+   const pt=pos(e),prev=points[points.length-1];
+   if(Math.hypot(pt[0]-prev[0],pt[1]-prev[1])>.003){
+     points.push(pt);
+     // Draw only the latest segment; repainting hundreds of strokes on
+     // every pointer movement makes inexpensive Android phones stutter.
+     paintStroke({points:[prev,pt],color:penColor});
+   }
+ };
+ const finish=()=>{
+   if(!dragging)return;
+   dragging=false;
+   const step=Math.ceil(points.length/40);
+   const sampled=points.filter((_,i)=>i%step===0).slice(0,40);
+   if(points.length===1)paintStroke({points:sampled,color:penColor});
+   send({type:'draw',points:sampled,color:penColor});
+   if(state.strokes)state.strokes.push({points:sampled,color:penColor});
+ };
+ c.onpointerup=finish;
+ c.onpointercancel=finish;
+}
 // Optional group video: peer-to-peer WebRTC mesh, suitable for small rooms only.
 $('camera-toggle').onclick=async()=>localStream?stopVideo():startVideo();
 $('mic-toggle').onclick=()=>{if(!localStream)return;microphoneEnabled=!microphoneEnabled;localStream.getAudioTracks().forEach(t=>t.enabled=microphoneEnabled);$('mic-toggle').textContent=microphoneEnabled?'🎙 Micro ON':'🔇 Micro OFF'};
