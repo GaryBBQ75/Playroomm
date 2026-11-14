@@ -71,12 +71,15 @@ class Room:
     recent: list = field(default_factory=list)
     generation: int = 0
     timer: asyncio.Task | None = None
+    playlist: list = field(default_factory=lambda: ["draw", "quiz", "vote"])
+    mode: str = "mix"
+    resume_scores: bool = False
     updated: float = field(default_factory=time.time)
 
     def view(self, player_id):
         result = {
             "type": "state", "room": self.code, "you": player_id, "host": self.host,
-            "status": self.status, "game": self.game, "round": self.round_number + 1,
+            "status": self.status, "game": self.game, "mode": self.mode, "resumeScores": self.resume_scores, "round": self.round_number + 1,
             "totalRounds": self.total_rounds, "endsAt": int(self.ends_at * 1000),
             "players": [{"id": p.id, "name": p.name, "score": p.score, "platform": p.platform, "media": p.media, "answered": p.answered} for p in self.players.values()],
             "messages": self.recent[-12:], "strokes": self.strokes[-500:], "guesses": self.guesses[-12:],
@@ -113,12 +116,16 @@ class Room:
             self.timer.cancel()
         self.generation += 1
 
-    async def start(self, rounds=6):
+    async def start(self, rounds=6, game="mix"):
         self.cancel_timer()
         self.round_number = -1
         self.total_rounds = rounds
-        for p in self.players.values():
-            p.score = 0
+        self.mode = game
+        self.playlist = ["draw", "quiz", "vote"] if game == "mix" else [game]
+        if not self.resume_scores:
+            for p in self.players.values():
+                p.score = 0
+        self.resume_scores = False
         await self.next_round()
 
     async def next_round(self):
@@ -128,15 +135,15 @@ class Room:
         self.votes, self.choices = {}, {}
         for p in self.players.values():
             p.answered = False
-        if self.round_number >= self.total_rounds:
+        if self.total_rounds > 0 and self.round_number >= self.total_rounds:
             self.status, self.game, self.ends_at = "finished", "", 0
             await self.broadcast()
             return
         self.status = "playing"
-        self.game = ("draw", "quiz", "vote")[self.round_number % 3]
+        self.game = self.playlist[self.round_number % len(self.playlist)]
         if self.game == "draw":
             ids = list(self.players)
-            self.artist_id = ids[(self.round_number // 3) % len(ids)] if ids else None
+            self.artist_id = ids[(self.round_number // len(self.playlist)) % len(ids)] if ids else None
             self.answer = random.choice(WORDS)
         elif self.game == "quiz":
             q, options, correct = random.choice(QUIZZES)
@@ -186,7 +193,18 @@ class Room:
     async def on_message(self, p, data):
         kind = data.get("type")
         if kind == "start" and p.id == self.host and self.status in ("lobby", "finished") and len(self.players) >= 2:
-            await self.start(3 if data.get("rounds") == 3 else 6)
+            chosen = data.get("game", "mix")
+            if chosen not in ("mix", "draw", "quiz", "vote"):
+                return
+            rounds = data.get("rounds", 6)
+            if type(rounds) is not int or rounds not in (0, 3, 6, 12):
+                rounds = 6
+            await self.start(rounds, chosen)
+        elif kind == "lobby" and p.id == self.host and self.status in ("playing", "results", "finished"):
+            self.cancel_timer()
+            self.status, self.game, self.ends_at = "lobby", "", 0
+            self.resume_scores = True
+            await self.broadcast()
         elif kind == "next" and p.id == self.host and self.status == "results":
             await self.next_round()
         elif kind == "draw" and self.status == "playing" and self.game == "draw" and p.id == self.artist_id:
