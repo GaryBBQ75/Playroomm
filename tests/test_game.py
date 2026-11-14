@@ -76,5 +76,51 @@ class PlayroomFlow(unittest.IsolatedAsyncioTestCase):
         finally:
             await alice.close(); await bob.close()
 
+    async def test_choose_single_game_and_switch_with_scores(self):
+        async with self.session.post(self.url+'/api/rooms') as r:
+            self.assertEqual(r.status, 200)
+            code = (await r.json())['code']
+        alice = await self.session.ws_connect(self.url+f'/ws?room={code}')
+        bob = await self.session.ws_connect(self.url+f'/ws?room={code}')
+        try:
+            await alice.send_json({'type':'join','name':'Alice'})
+            await self.get_state(alice)
+            await bob.send_json({'type':'join','name':'Bob'})
+            await self.get_state(alice)
+            await self.get_state(bob)
+
+            await alice.send_json({'type':'start','game':'quiz','rounds':3})
+            qa = await self.get_state(alice,'playing','quiz')
+            await self.get_state(bob,'playing','quiz')
+            self.assertEqual(qa['mode'],'quiz')
+            correct = ROOMS[code].quiz['correct']
+            await alice.send_json({'type':'choice','index':correct})
+            await bob.send_json({'type':'choice','index':(correct+1)%4})
+            result = await self.get_state(alice,'results','quiz')
+            await self.get_state(bob,'results','quiz')
+            self.assertEqual(next(p['score'] for p in result['players'] if p['name']=='Alice'),100)
+
+            await alice.send_json({'type':'lobby'})
+            lobby = await self.get_state(alice,'lobby')
+            await self.get_state(bob,'lobby')
+            self.assertTrue(lobby['resumeScores'])
+            await alice.send_json({'type':'start','game':'vote','rounds':0})
+            va = await self.get_state(alice,'playing','vote')
+            vb = await self.get_state(bob,'playing','vote')
+            self.assertEqual(va['totalRounds'],0)
+            self.assertEqual(va['mode'],'vote')
+            self.assertEqual(next(p['score'] for p in va['players'] if p['name']=='Alice'),100)
+            await alice.send_json({'type':'vote','target':vb['you']})
+            await bob.send_json({'type':'vote','target':va['you']})
+            await self.get_state(alice,'results','vote')
+            await self.get_state(bob,'results','vote')
+            await alice.send_json({'type':'next'})
+            second = await self.get_state(alice,'playing','vote')
+            self.assertEqual(second['round'],2)
+            self.assertEqual(second['totalRounds'],0)
+        finally:
+            await alice.close()
+            await bob.close()
+
 if __name__ == '__main__':
     unittest.main()
