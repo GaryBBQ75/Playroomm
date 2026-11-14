@@ -1,0 +1,113 @@
+/* Playroom arcade layer: shared identity, different worlds for each game. */
+#room-screen .game-section { isolation:isolate; transition:background .3s ease,border-color .3s ease; }
+#room-screen .game-section[data-game="draw"] {--game-accent:#ff903e; --game-soft:#fff0d8; background:linear-gradient(155deg,#fffdf6,#fff4e9 82%);border-color:#f4d4aa}
+#room-screen .game-section[data-game="quiz"] {--game-accent:#0aa7a1; --game-soft:#e3fbf3; background:linear-gradient(150deg,#f6fffb,#e9fdf7);border-color:#b8e6db}
+#room-screen .game-section[data-game="vote"] {--game-accent:#eb559b; --game-soft:#fff0f7; background:linear-gradient(135deg,#fff8fc,#fdf0fd);border-color:#f4cfdf}
+#room-screen .game-section[data-game="music"] {--game-accent:#9b67f2; --game-soft:#efe7ff; background:linear-gradient(155deg,#282052,#432c82);border-color:#5940aa;color:white}
+#room-screen .game-section[data-game="music"]:before {color:#67529c}
+#room-screen .game-section[data-game="music"] .game-desc,
+#room-screen .game-section[data-game="music"] .tiny-note {color:#ded0ff}
+#room-screen .game-section[data-game="music"] .clock {background:#6d4bb7;color:white}
+#room-screen .game-section[data-game="music"] .eyebrow-game {background:#6546a7;color:white}
+#room-screen .game-section[data-game="music"] .choice-button {background:#fff;color:#392c57}
+#room-screen .game-section[data-game="music"] .sound-button {color:white}
+#room-screen .game-section[data-state="playing"] .round-head .eyebrow-game {box-shadow:0 3px 12px #271a5413}
+#room-screen .game-section[data-state="playing"] .choice-button:active,
+#room-screen .game-section[data-state="playing"] .vote-card:active,
+#room-screen .game-section[data-state="playing"] .game-card:active {transform:scale(.97)}
+#room-screen .game-section[data-state="playing"] .choice-button.chosen,
+#room-screen .game-section[data-state="playing"] .vote-card.chosen {box-shadow:0 0 0 3px var(--game-accent,#6845ef) inset;animation:arcadeSelect .28s ease both}
+#room-screen .game-section[data-state="results"] .result-icon {animation:arcadeTrophy .5s cubic-bezier(.2,1.5,.5,1)}
+#room-screen .game-section[data-state="results"] .result-center:before,
+#room-screen .game-section[data-state="finished"] .result-center:before{content:"✦ ✳ ★ ✦ ✴ ★";position:absolute;z-index:-1;top:8%;left:0;width:100%;font-size:clamp(25px,4vw,45px);letter-spacing:3vw;color:#ffba57;opacity:.6;animation:confettiFall 2.5s ease-out both;pointer-events:none}
+#room-screen .game-section[data-state="results"] .result-score {animation:arcadeSelect .55s cubic-bezier(.2,1.5,.5,1)}
+.game-flash {position:absolute;inset:0;z-index:21;pointer-events:none;display:grid;place-items:center;background:linear-gradient(135deg,#5e39dfed,#ff73a4ec);color:white;border-radius:22px;animation:flashAway .92s ease-in both}
+.game-flash>div{text-align:center;transform:rotate(-4deg);font:900 clamp(38px,12vw,88px)/1.06 "Outfit",sans-serif;text-shadow:0 8px 0 #301c6a44;animation:flashPop .48s cubic-bezier(.1,1.6,.5,1) both}
+.game-flash small{display:block;font:800 13px "DM Sans",sans-serif;letter-spacing:2px;margin-bottom:14px}
+.game-flash[data-game="draw"]{background:linear-gradient(145deg,#ffad4bee,#f96f5feb)}
+.game-flash[data-game="quiz"]{background:linear-gradient(145deg,#0bb5a6ee,#2ec9efee)}
+.game-flash[data-game="vote"]{background:linear-gradient(145deg,#ed5598ee,#a74dceee)}
+.game-flash[data-game="music"]{background:linear-gradient(145deg,#512dc3ee,#9a59eeed)}
+.draw-hint{display:flex;align-items:center;gap:8px;justify-content:center;border-radius:13px;background:#fff5e7;color:#a45222;padding:5px 10px;font:800 12px "DM Sans",sans-serif;min-height:27px}
+.draw-hint span{letter-spacing:2px}
+.guess-form .keyboard-trigger{display:none;background:#fff0d8;border:1px solid #f2c9a4;color:#753e1c;border-radius:12px;min-width:45px;min-height:45px;font-size:20px;padding:6px}
+.play-keyboard{display:none}
+.sound-stage{display:flex;justify-content:center;align-items:center;flex-direction:column;gap:10px;flex:none;margin:20px auto 5px}
+.sound-disc{width:125px;height:125px;border-radius:50%;border:7px solid #7557b6;background:repeating-radial-gradient(circle,#34205b 0px,#34205b 2px,#4b2f80 3px,#4b2f80 5px);box-shadow:0 12px 35px #08051955;display:grid;place-items:center;position:relative}
+.sound-disc:after{content:"";position:absolute;inset:36%;background:#ffc868;border-radius:50%;box-shadow:inset 0 0 0 8px #ec96ad}
+.sound-disc.playing{animation:vinylSpin 1.8s linear infinite}
+.sound-button{border:2px solid #e4ccff;border-radius:999px;background:#8158c3;padding:11px 21px;font-weight:900;min-height:44px;font-size:14px;color:#fff;cursor:pointer}
+.sound-button:hover{filter:brightness(1.13)}
+.sound-bars{display:flex;align-items:center;justify-content:center;height:30px;gap:4px}
+.sound-bars span{width:6px;border-radius:5px;background:#ffa6c7;height:8px}
+.sound-stage.playing .sound-bars span{animation:equalizer .44s ease-in-out infinite alternate}
+.sound-stage.playing .sound-bars span:nth-child(2){animation-delay:.16s}
+.sound-stage.playing .sound-bars span:nth-child(3){animation-delay:.31s}
+.sound-stage.playing .sound-bars span:nth-child(4){animation-delay:.08s}
+.sound-stage.playing .sound-bars span:nth-child(5){animation-delay:.21s}
+@keyframes equalizer{from{height:5px}to{height:29px}}
+@keyframes vinylSpin{to{transform:rotate(360deg)}}
+@keyframes confettiFall{from{transform:translateY(-28px) rotate(-6deg);opacity:0}35%{opacity:.8}to{transform:translateY(75px) rotate(11deg);opacity:0}}
+@keyframes arcadeTrophy{from{transform:scale(.2) rotate(-20deg)}70%{transform:scale(1.18) rotate(8deg)}to{transform:scale(1)}}
+@keyframes arcadeSelect{from{transform:scale(.9);opacity:.75}to{transform:scale(1);opacity:1}}
+@keyframes flashAway{0%,48%{opacity:1}100%{opacity:0}}
+@keyframes flashPop{from{transform:scale(.38) rotate(-12deg)}to{transform:scale(1.05) rotate(0deg)}}
+@media(max-width:790px){
+  /* Gameplay is an app screen; scrolling is reserved for menus and overlays. */
+  #room-screen .game-section[data-state="playing"]{overflow:hidden!important}
+  #room-screen .game-section[data-state="playing"] .game-inner{display:flex;flex-direction:column;height:100%;min-height:0}
+  #room-screen .game-section[data-state="playing"] .game-inner>.game-desc,
+  #room-screen .game-section[data-state="playing"] .game-inner>.tiny-note{flex:none;margin:2px 0;font-size:11px;line-height:1.2}
+  #room-screen .game-section[data-state="playing"] .round-head{flex:none}
+  #room-screen .game-section[data-state="playing"] .game-prompt{flex:none;margin:10px 0 8px;font-size:clamp(19px,5.6vw,27px)}
+  .quiz-game .choice-grid,.music-game .choice-grid{flex:1;min-height:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-rows:repeat(2,minmax(0,1fr));gap:8px;margin:8px 0!important}
+  .quiz-game .choice-button,.music-game .choice-button{height:100%;min-height:0;padding:12px 9px;font-size:clamp(12px,3.5vw,16px);border-radius:18px;align-items:center}
+  .quiz-game .choice-button span,.music-game .choice-button span{width:25px;height:25px;margin-right:7px;flex:none}
+  .vote-game .vote-grid{flex:1;min-height:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:minmax(0,1fr);gap:6px;margin:8px 0!important}
+  .vote-game .vote-card{height:100%;min-height:0;padding:5px 9px;font-size:clamp(11px,3.3vw,15px);border-radius:14px}
+  .vote-game .vote-card .face{font-size:clamp(19px,5vw,28px)}
+  .music-game .sound-stage{margin:7px auto 4px;gap:5px}
+  .music-game .sound-disc{width:74px;height:74px;border-width:5px}
+  .music-game .sound-button{min-height:36px;padding:6px 15px;font-size:12px}
+  .music-game .sound-bars{height:14px}
+  .music-game .game-prompt{margin:5px 0!important}
+  .music-game .choice-grid{margin:6px 0!important}
+  .music-game .tiny-note{display:none}
+  .draw-game{position:relative}
+  .draw-game .draw-hint{flex:none;padding:4px 8px;min-height:26px;font-size:11px}
+  .draw-game .canvas-shell{flex:1;min-height:0;margin:0;overflow:hidden;position:relative;border:2px solid #f5d0a1!important;box-shadow:inset 0 0 25px #ffb75d0e}
+  .draw-game .draw-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;aspect-ratio:auto;touch-action:none}
+  .draw-game .guess-form{margin:0;display:flex;gap:5px;flex:none}
+  .draw-game .guess-form input{font-size:16px;min-width:0;min-height:42px;padding:7px 9px}
+  .draw-game .guess-form .keyboard-trigger{display:inline-grid;place-items:center}
+  .draw-game .guess-form button[type="submit"]{min-height:42px;padding:8px;font-size:12px}
+  .draw-game .tools{flex:none;margin:3px 0;gap:4px;justify-content:space-between}
+  .draw-game .tools .swatch{width:30px;height:30px;min-width:30px;min-height:30px}
+  .draw-game .play-keyboard{display:block;position:absolute;z-index:12;left:0;right:0;bottom:55px;background:#fffaf0ed;border:1px solid #e9d7bc;border-radius:16px;padding:9px 6px 8px;box-shadow:0 -9px 35px #2a194f33;backdrop-filter:blur(15px)}
+  .draw-game .play-keyboard.hidden{display:none!important}
+  .keyboard-row{display:flex;justify-content:center;gap:3px;margin:3px 0}
+  .keyboard-row button{flex:1;max-width:43px;min-width:0;min-height:34px;border-radius:7px;border:1px solid #ebd6bf;background:#fff;color:#453254;font:900 clamp(11px,3vw,15px) "Outfit",sans-serif;padding:1px;touch-action:manipulation}
+  .keyboard-row button:active{background:#ffc765;transform:scale(.92)}
+  .keyboard-row button.dimmed{opacity:.25;background:#eadfda}
+  .keyboard-row button.key-wide{min-width:38px;flex:1.5;background:#f4defb}
+  .keyboard-label{font-size:10px;text-align:center;color:#6a5c6a;margin:0 0 6px}
+  .draw-game .guess-feed{max-height:22px;margin:0}
+  .draw-game .guess-chip{font-size:9px}
+  #room-screen .game-section[data-state="results"]{overflow:hidden!important}
+  #room-screen .game-section[data-state="results"] .result-center{padding:18px 3px}
+  #room-screen .game-section[data-state="results"] .result-icon{font-size:64px}
+  #room-screen .game-section[data-state="results"] .result-score{font-size:clamp(26px,7vw,39px)}
+}
+@media(max-width:790px) and (max-height:620px){
+  .music-game .sound-disc{width:56px;height:56px}
+  .music-game .sound-stage{flex-direction:row}
+  .music-game .sound-bars{display:none}
+  .game-flash>div{font-size:clamp(32px,10vw,55px)}
+  .draw-game .play-keyboard{bottom:48px}
+  .keyboard-row button{min-height:28px}
+}
+@media(prefers-reduced-motion:reduce){
+ .game-flash,.game-flash>div,.sound-disc.playing,.sound-stage.playing .sound-bars span,
+ #room-screen .game-section[data-state="results"] .result-icon,
+ #room-screen .game-section[data-state="results"] .result-center:before {animation:none!important}
+}
