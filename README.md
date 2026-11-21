@@ -9,6 +9,7 @@ Le QG de jeux de ta bande de potes : des jeux d'action en temps réel, courts et
 - **La saison** : chaque partie rapporte des points (3, 2, 1 pour le podium, ou victoire d'équipe). Le classement et l'historique sont gardés.
 - **Les bots** : l'hôte peut ajouter des bots pour compléter une partie ou tester seul.
 - **Réactions** : 😂 🔥 😱 👏 😈 💀 en direct pendant les parties.
+- **Visio** : chacun peut activer sa caméra et son micro. Les visages s'affichent dans le crew et en pastilles pendant les jeux. On voit les autres même caméra coupée. Nécessite HTTPS. Si certains réseaux 4G bloquent la vidéo, ajouter un serveur TURN via les variables `TURN_URL`, `TURN_USER`, `TURN_PASS`.
 
 ## Les jeux
 

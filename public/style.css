@@ -164,7 +164,7 @@ input { font: inherit; }
 .hud { position: absolute; top: calc(var(--safe-t) + 8px); left: 8px; right: 8px; display: flex; align-items: flex-start; gap: 8px; pointer-events: none; z-index: 5; }
 .hud > * { pointer-events: auto; }
 .hud-left { flex: 1; display: flex; gap: 4px; flex-wrap: wrap; font-size: 12px; font-weight: 700; }
-.hud-center { font-family: var(--title); font-size: 22px; background: rgba(20, 17, 43, .75); padding: 2px 12px; border-radius: 12px; min-width: 52px; text-align: center; }
+.hud-center { white-space: nowrap; font-family: var(--title); font-size: 20px; background: rgba(20, 17, 43, .75); padding: 2px 12px; border-radius: 12px; min-width: 52px; text-align: center; }
 .hud-center:empty { display: none; }
 .hud-right { flex: 1; display: flex; justify-content: flex-end; gap: 6px; }
 .chip { display: inline-flex; align-items: center; gap: 4px; background: rgba(20, 17, 43, .75); border-radius: 99px; padding: 3px 8px 3px 3px; }
@@ -261,3 +261,23 @@ input { font: inherit; }
 body.offline .offline-note { display: block; }
 body.offline #home-actions, body.offline #join-invite { display: none !important; }
 .code-chip:disabled { opacity: 1; }
+
+/* Visio */
+.visio-tools { display: flex; gap: 8px; flex-wrap: wrap; }
+.visio-tools .btn.primary { box-shadow: 0 4px 0 #a3203a; }
+body.solo .visio-tools, body.solo .visio-btn, body.offline .visio-tools, body.offline .visio-btn { display: none !important; }
+.av video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 50%; z-index: 2; background: #000; }
+.av.has-video::before, .av.has-video::after { display: none; }
+.av.has-video i { display: none; }
+.pl .av { overflow: hidden; }
+.pl .av.has-video { border: 3px solid var(--text); }
+video.mirror { transform: scaleX(-1); }
+.visio-strip { position: fixed; left: 8px; top: calc(var(--safe-t) + 56px); display: none; flex-direction: column; gap: 8px; z-index: 7; pointer-events: none; }
+.visio-strip.on { display: flex; }
+.visio-strip .vb { width: 52px; height: 52px; border-radius: 50%; border: 3px solid #fff; overflow: hidden; position: relative; background: #000; box-shadow: 0 4px 12px rgba(0, 0, 0, .45); }
+.visio-strip .vb video { width: 100%; height: 100%; object-fit: cover; }
+.visio-strip .vb span { position: absolute; left: 0; right: 0; bottom: 0; font-size: 8px; font-weight: 800; text-align: center; background: rgba(0, 0, 0, .55); padding: 1px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.visio-pool { position: fixed; left: -20px; top: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; overflow: hidden; }
+@media (orientation: landscape) and (max-height: 560px) {
+  .visio-strip .vb { width: 42px; height: 42px; }
+}

@@ -68,6 +68,7 @@ export class Crew {
     const p = this.players.get(pid);
     if (!p) return;
     p.online = false;
+    p.media = false;
     p.send = null;
     p.input = {};
     if (this.game && this.participants.includes(pid)) this.game.input?.(pid, {});
@@ -132,6 +133,17 @@ export class Crew {
       case 'act':
         if (this.phase === 'playing' && this.participants.includes(pid)) this.game.action?.(pid, msg.v);
         break;
+      case 'media':
+        if (!p.bot && p.media !== !!msg.on) { p.media = !!msg.on; this.broadcastState(); }
+        break;
+      case 'signal': {
+        // Relais WebRTC entre deux joueurs humains du crew.
+        const target = this.players.get(msg.target);
+        if (target && target.online && !target.bot && target.id !== pid && msg.data && typeof msg.data === 'object') {
+          target.send?.(JSON.stringify({ type: 'signal', from: pid, data: msg.data }));
+        }
+        break;
+      }
       case 'emote': {
         const e = String(msg.e || '').slice(0, 4);
         if (['😂', '🔥', '😱', '👏', '😈', '💀'].includes(e)) {
@@ -327,7 +339,7 @@ export class Crew {
       type: 'state',
       crew: { code: this.code, name: this.rec.name },
       hostId: this.hostId,
-      players: this.online().map(p => ({ id: p.id, name: p.name, color: p.color, bot: p.bot })),
+      players: this.online().map(p => ({ id: p.id, name: p.name, color: p.color, bot: p.bot, media: !!p.media })),
       phase: this.phase,
       remaining: this.phaseEnd ? Math.max(0, this.phaseEnd - Date.now()) : 0,
       vote: this.vote,

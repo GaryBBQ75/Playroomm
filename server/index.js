@@ -14,6 +14,13 @@ const PORT = Number(process.env.PORT || 8080);
 const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, 'data');
 
 const store = new Store(DATA_DIR);
+
+// Serveurs ICE pour la visio. Un serveur TURN (TURN_URL, TURN_USER, TURN_PASS) aide
+// quand certains réseaux mobiles bloquent la connexion directe.
+const ICE_SERVERS = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }];
+if (process.env.TURN_URL) {
+  ICE_SERVERS.push({ urls: process.env.TURN_URL.split(','), username: process.env.TURN_USER || '', credential: process.env.TURN_PASS || '' });
+}
 const crews = new Map();
 
 const TYPES = {
@@ -81,7 +88,7 @@ const server = http.createServer((req, res) => {
   sendFile(res, file);
 });
 
-const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 8 * 1024 });
+const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 64 * 1024 });
 
 wss.on('connection', ws => {
   let crew = null;
@@ -101,7 +108,7 @@ wss.on('connection', ws => {
       if (id.length < 8 || !name) { send(JSON.stringify({ type: 'error', message: 'Choisis un pseudo.' })); return; }
       let c;
       if (msg.create) {
-        const crewName = cleanName(msg.create, 28) || `Le crew de ${name}`;
+        const crewName = (typeof msg.create === 'string' && cleanName(msg.create, 28)) || `Le crew de ${name}`;
         const rec = store.create(newCode(), crewName);
         c = getCrew(rec.code);
       } else {
@@ -117,7 +124,7 @@ wss.on('connection', ws => {
       if (r.error) { send(JSON.stringify({ type: 'error', message: r.error })); return; }
       c.players.get(id).ws = ws;
       crew = c; pid = id;
-      send(JSON.stringify({ type: 'welcome', you: pid, catalog: catalog() }));
+      send(JSON.stringify({ type: 'welcome', you: pid, catalog: catalog(), iceServers: ICE_SERVERS }));
       send(JSON.stringify(crew.state()));
       return;
     }

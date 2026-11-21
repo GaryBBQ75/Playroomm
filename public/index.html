@@ -63,6 +63,10 @@
       </header>
       <div class="scroll">
         <div class="players" id="lobby-players"></div>
+        <div class="visio-tools">
+          <button class="btn small" id="btn-cam">📷 Activer ma caméra</button>
+          <button class="btn small hidden" id="btn-mic">🎙️ Micro activé</button>
+        </div>
         <div class="host-tools" id="host-tools">
           <button class="btn small" id="btn-bot-add">+ Bot</button>
           <button class="btn small" id="btn-bot-rem">− Bot</button>
@@ -120,6 +124,7 @@
         <div class="hud-left" id="hud-left"></div>
         <div class="hud-center" id="hud-center"></div>
         <div class="hud-right">
+          <button class="icon-btn small visio-btn" id="btn-cam-game" aria-label="Caméra">📷</button>
           <button class="icon-btn small" id="btn-emote" aria-label="Réactions">😂</button>
           <button class="icon-btn small" id="btn-full" aria-label="Plein écran">⛶</button>
           <button class="icon-btn small host-only" id="btn-quit" aria-label="Arrêter la partie">✕</button>
@@ -153,6 +158,8 @@
       </div>
     </section>
 
+    <div class="visio-strip" id="visio-strip"></div>
+    <div class="visio-pool" id="visio-pool"></div>
     <div class="toasts" id="toasts"></div>
     <div class="conn hidden" id="conn">Connexion…</div>
   </div>

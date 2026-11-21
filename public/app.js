@@ -1,4 +1,5 @@
 import { createControls } from './lib/input.js';
+import { createVisio } from './lib/visio.js';
 import { fx, sound } from './lib/fx.js';
 import * as arena from './games/arena.js';
 import * as clash from './games/clash.js';
@@ -84,6 +85,7 @@ function onMessage(m) {
   switch (m.type) {
     case 'welcome':
       S.catalog = m.catalog;
+      visio.setIce(m.iceServers);
       break;
     case 'error':
       if (m.code === 'nocrew') { store.del('pr_crew'); S.hello = null; history.replaceState(null, '', '/'); }
@@ -103,6 +105,9 @@ function onMessage(m) {
         const r = RENDERERS[m.g];
         for (const ev of m.s.ev) r?.onEvent(ev, view());
       }
+      break;
+    case 'signal':
+      visio.onSignal(m.from, m.data);
       break;
     case 'emote': {
       S.emotes[m.id] = { e: m.e, t: performance.now() };
@@ -131,6 +136,8 @@ function onState(st) {
   const first = !S.state;
   S.state = st;
   S.endAt = performance.now() + (st.remaining || 0);
+  document.body.classList.toggle('solo', !!S.local);
+  if (!S.local) visio.sync(st.players);
   if (!S.local) {
     store.set('pr_crew', st.crew.code);
     if (first || location.pathname !== `/c/${st.crew.code}`) history.replaceState(null, '', `/c/${st.crew.code}`);
@@ -146,6 +153,7 @@ function onState(st) {
   if (target === 's-intro') renderIntro();
   if (target === 's-results') renderResults();
   if (target === 's-game') refreshGameChrome();
+  placeVideos();
 }
 
 function gameDef(id) { return S.catalog.find(g => g.id === id); }
@@ -198,7 +206,7 @@ function renderLobby() {
   $('btn-share').disabled = !!S.local;
   const slots = [];
   for (const p of st.players) {
-    slots.push(`<div class="pl">${p.id === st.hostId ? '<span class="crown">👑</span>' : ''}${avatar(p.color)}<span class="name">${esc(p.name)}${p.id === pid ? ' (toi)' : ''}</span>${p.bot ? '<span class="tag">bot</span>' : ''}</div>`);
+    slots.push(`<div class="pl">${p.id === st.hostId ? '<span class="crown">👑</span>' : ''}${avatar(p.color).replace('class="av', `data-vid="${esc(p.id)}" class="av`)}<span class="name">${esc(p.name)}${p.id === pid ? ' (toi)' : ''}</span>${p.bot ? '<span class="tag">bot</span>' : ''}</div>`);
   }
   for (let i = st.players.length; i < 8; i++) slots.push('<div class="pl empty"><span class="av"></span><span class="name">libre</span></div>');
   $('lobby-players').innerHTML = slots.join('');
@@ -239,6 +247,7 @@ $('btn-start').onclick = () => { sound.unlock(); send({ type: 'start' }); };
 $('btn-bot-add').onclick = () => send({ type: 'addBot' });
 $('btn-bot-rem').onclick = () => send({ type: 'removeBot' });
 $('btn-leave').onclick = () => {
+  visio.destroy();
   if (S.local) { S.local.leave(pid); S.local = null; S.state = null; showHome(); return; }
   S.hello = null;
   store.del('pr_crew');
@@ -257,6 +266,56 @@ $('btn-share').onclick = async () => {
 const updateSoundBtn = () => { $('btn-sound').textContent = sound.muted ? '🔇' : '🔊'; };
 $('btn-sound').onclick = () => { sound.toggle(); updateSoundBtn(); };
 updateSoundBtn();
+
+// ---------- Visio ----------
+const visio = createVisio({ send: o => send(o), me: pid, onChange: () => { placeVideos(); updateVisioButtons(); }, toast: m => toast(m) });
+
+function updateVisioButtons() {
+  $('btn-cam').textContent = visio.on ? '📷 Couper ma caméra' : '📷 Activer ma caméra';
+  $('btn-cam').classList.toggle('primary', visio.on);
+  $('btn-mic').classList.toggle('hidden', !visio.on);
+  $('btn-mic').textContent = visio.mic ? '🎙️ Micro activé' : '🔇 Micro coupé';
+  $('btn-cam-game').textContent = visio.on ? '📷' : '🚫';
+}
+
+// Range chaque vidéo dans sa pastille (crew) ou dans la bande de visages (jeu, vote, résultats).
+function placeVideos() {
+  const pool = $('visio-pool');
+  const st = S.state;
+  const humans = (st?.players || []).filter(p => !p.bot);
+  const withVideo = humans.filter(p => visio.videoOf(p.id));
+  const used = new Set();
+  const strip = $('visio-strip');
+  const showStrip = !S.local && st && S.screen && !['s-home', 's-lobby'].includes(S.screen) && withVideo.length > 0;
+  strip.classList.toggle('on', !!showStrip);
+  if (S.screen === 's-lobby') {
+    document.querySelectorAll('#lobby-players .av[data-vid]').forEach(av => {
+      const v = visio.videoOf(av.dataset.vid);
+      av.classList.toggle('has-video', !!v);
+      if (v) { if (v.parentNode !== av) av.appendChild(v); used.add(v); v.play?.().catch(() => {}); }
+    });
+  }
+  if (showStrip) {
+    const key = withVideo.map(p => p.id + p.color).join();
+    if (strip.dataset.key !== key) {
+      strip.dataset.key = key;
+      strip.innerHTML = withVideo.map(p => `<div class="vb" data-vid="${esc(p.id)}" style="border-color:${esc(p.color)}"><span>${esc(p.name)}</span></div>`).join('');
+    }
+    strip.querySelectorAll('.vb').forEach(el => {
+      const v = visio.videoOf(el.dataset.vid);
+      if (v) { if (v.parentNode !== el) el.prepend(v); used.add(v); v.play?.().catch(() => {}); }
+    });
+  }
+  // Les vidéos non affichées restent dans la page pour garder le son.
+  for (const p of humans) {
+    const v = visio.videoOf(p.id);
+    if (v && !used.has(v) && v.parentNode !== pool) { pool.appendChild(v); v.play?.().catch(() => {}); }
+  }
+}
+
+$('btn-cam').onclick = async () => { sound.unlock(); if (visio.on) visio.stop(); else await visio.start(); };
+$('btn-mic').onclick = () => visio.toggleMic();
+$('btn-cam-game').onclick = async () => { if (visio.on) visio.stop(); else await visio.start(); };
 
 // ---------- Vote ----------
 function voteCard(g, extra = '', voters = []) {
