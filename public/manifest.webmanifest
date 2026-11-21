@@ -1,1 +1,11 @@
-{"name":"Playroom — Jeux entre amis","short_name":"Playroom","start_url":"/","scope":"/","display":"fullscreen","background_color":"#fffaf3","theme_color":"#16142b","lang":"fr","icons":[{"src":"/assets/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}],"display_override":["fullscreen","standalone"],"description":"Des jeux multijoueurs rapides, plein écran sur mobile, avec tes amis."}
+{
+  "name": "Playroom",
+  "short_name": "Playroom",
+  "description": "Jeux d'action en temps réel entre potes",
+  "start_url": "/",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#14112b",
+  "theme_color": "#14112b",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

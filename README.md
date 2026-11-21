@@ -1,93 +1,75 @@
-# Playroom — jeux entre amis en direct
+# Playroom
 
-Plateforme mobile-first de jeux multijoueurs (dessin plein écran, quiz, blind test musical, votes et Mix Party). Un salon privé partagé par lien, un classement commun, du WebSocket temps réel, et une visio WebRTC optionnelle. **L'inscription n'est jamais obligatoire pour jouer** : les amis peuvent rejoindre avec un pseudo.
+Le QG de jeux de ta bande de potes : des jeux d'action en temps réel, courts et chaotiques, directement dans le navigateur du téléphone. Pas d'inscription, juste un pseudo.
 
-## Déployer sur OVH avec Coolify et PostgreSQL
+## Le principe
 
-Le dépôt inclut `compose.yaml` pour une instance Playroom et PostgreSQL 17 avec un volume persistant, sans exposition publique du port PostgreSQL.
+- **Un crew permanent** : tu crées l'espace de ta bande une fois, tu partages le lien (`/c/CODE`) et tout le monde y revient à chaque soirée.
+- **Le vote** : à la fin de chaque partie, l'app propose 3 jeux tirés au hasard (plus "Rejouer"). Tout le monde vote en 15 secondes. En cas d'égalité, une roue tranche.
+- **La saison** : chaque partie rapporte des points (3, 2, 1 pour le podium, ou victoire d'équipe). Le classement et l'historique sont gardés.
+- **Les bots** : l'hôte peut ajouter des bots pour compléter une partie ou tester seul.
+- **Réactions** : 😂 🔥 😱 👏 😈 💀 en direct pendant les parties.
 
-1. Sur **Coolify**, créer une ressource **Docker Compose** depuis `GaryBBQ75/Playroomm`, branche `main`, fichier `compose.yaml`. Le serveur de jeu doit rester à **une seule instance** pour cette V1, car les salons actifs sont en mémoire.
-2. Dans les variables d'environnement de Coolify (ne pas enregistrer les secrets dans GitHub), définir :
-   - `POSTGRES_PASSWORD` : mot de passe aléatoire fort (48 caractères hexadécimaux pour éviter les caractères spéciaux dans l'URL PostgreSQL).
-   - `APP_ORIGIN=https://VOTRE-DOMAINE` (sans slash final).
-   - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` : voir la section OAuth ci-dessous ; ces trois paramètres peuvent être ajoutés après le premier déploiement.
-3. Attribuer le domaine HTTPS **au service playroom** sur son port interne `8080`. Activer le passage des connexions **WebSocket** sur le proxy ; ne pas exposer PostgreSQL.
-4. Déployer, puis ouvrir `https://VOTRE-DOMAINE/readyz` : réponse attendue `{"status":"ok"}`. Tester création de salon et invitations depuis deux téléphones sur deux réseaux distincts.
-5. Sauvegarder périodiquement la base PostgreSQL. Les scores de fin de partie sont persistants ; les salons en cours ne le sont pas encore.
+## Les jeux
 
-Le formulaire `/api/me` fonctionne même si Google n'est pas configuré : il retourne `user: null` et `loginEnabled: false`. Les invités peuvent continuer à jouer.
+| Jeu | Famille | Durée | Joueurs |
+| --- | --- | --- | --- |
+| 🚗 Sumo tamponneuses | Chaos | 2 min | 2 à 8 |
+| 💣 Patate chaude | Chaos | 1 à 2 min | 2 à 8 |
+| 🥊 Bagarre | Chaos | 3 min | 2 à 8 |
+| 🏰 Mini Clash | Stratégie (équipes) | 3 min | 2 à 8 |
+| 🛡️ Défense coop | Défense | 8 à 10 min | 1 à 8 |
 
-### Activer la connexion Google
+Commandes : joystick flottant et boutons d'action pour les jeux d'arène, cartes à toucher pour Mini Clash et Défense. Au clavier sur ordinateur : flèches ou ZQSD, Espace, Maj.
 
-1. Dans la [Google Cloud Console](https://console.cloud.google.com/apis/credentials), configurer l'écran de consentement OAuth ; ajouter des testeurs si l'application est encore en mode test.
-2. Créer un **Client OAuth 2.0 de type Application Web**.
-3. Dans ses **URI de redirection autorisées**, ajouter exactement `https://VOTRE-DOMAINE/auth/google/callback`.
-4. Dans les variables Coolify, renseigner :
-   - `GOOGLE_CLIENT_ID` : Client ID du projet Google.
-   - `GOOGLE_CLIENT_SECRET` : secret du client (ne jamais le committer).
-   - `GOOGLE_REDIRECT_URI=https://VOTRE-DOMAINE/auth/google/callback`.
-   - `APP_ORIGIN=https://VOTRE-DOMAINE`.
-5. Redéployer. L'interface affiche « Se connecter » quand OAuth est opérationnel. Seuls `openid email profile` sont demandés. Le compte utilise une session HttpOnly/Secure/SameSite=Lax dont l'empreinte est enregistrée en base.
-
-Le compte Google est facultatif : il ajoute un profil persistant et permet de retrouver ses scores de parties terminées via `GET /api/me/history`. La déconnexion passe par `POST /auth/logout`.
-
-## Déploiement via GitHub Actions (après configuration initiale Coolify)
-
-Un workflow manuel [Deploy Playroom to Coolify](https://github.com/GaryBBQ75/Playroomm/actions/workflows/deploy-coolify.yml) permet de lancer et de vérifier un déploiement, **une fois la ressource Docker Compose créée sur Coolify**.
-
-Dans **GitHub → Settings → Environments**, créer un environnement `production` et lui ajouter les secrets :
-- `COOLIFY_URL` : URL HTTPS de l'installation Coolify, sans `/api/v1`
-- `COOLIFY_API_TOKEN` : token Coolify avec permission limitée `deploy`
-- `COOLIFY_RESOURCE_UUID` : UUID de la ressource Playroom (Docker Compose) dans Coolify
-
-Ajouter aussi la variable d'environnement GitHub `PLAYROOM_PUBLIC_URL` avec l'URL HTTPS publique et définitive du jeu. Elle servira à valider `/readyz` après déploiement.
-
-Le workflow se lance depuis **Actions → Deploy Playroom to Coolify → Run workflow**. Les identifiants PostgreSQL et Google OAuth sont configurés **dans les variables d'environnement Coolify de la ressource**, pas dans GitHub. Les secrets ne doivent jamais être envoyés dans un ticket ou un chat.
-
-## Démarrer en local
+## Lancer en local
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python server.py
+npm install
+npm start          # http://localhost:8080
+npm test           # fait jouer chaque jeu par des bots jusqu'au bout
 ```
 
-Sans `DATABASE_URL`, le mode local utilise des invités sans historique. Sur Coolify, `DATABASE_URL` est fourni automatiquement depuis PostgreSQL dans `compose.yaml` et la base est obligatoire. Pour exécuter les tests d'intégration, définir `DATABASE_URL` vers une base dédiée.
+Pour tester à plusieurs sur le même Wi-Fi, ouvre `http://IP-DE-TON-PC:8080` sur les téléphones.
 
-```bash
-python -m unittest discover -s tests -v
+## Tester en ligne en 2 minutes (Render, gratuit)
+
+[![Déployer sur Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/GaryBBQ75/Playroomm)
+
+Le bouton crée le service à partir de `render.yaml`. Version gratuite : le serveur s'endort après 15 min sans visite (premier chargement d'environ 30 s) et les crews sont remis à zéro à chaque redémarrage. Parfait pour tester, Coolify pour la vraie version.
+
+## Déployer sur Coolify
+
+1. Nouvelle ressource **Docker Compose** depuis ce dépôt, fichier `compose.yaml`.
+2. Attribuer le domaine au service `playroom`, port interne `8080`. Le proxy de Coolify gère les WebSockets (`/ws`).
+3. Le volume `playroom-data` garde les crews et la saison (`/data/crews.json`).
+4. Vérifier `https://TON-DOMAINE/healthz` → `{"status":"ok"}`.
+
+Une seule instance : les parties en cours vivent en mémoire.
+
+## Architecture
+
+```
+server/
+  index.js         HTTP + WebSocket
+  crew.js          crew, vote, roue, boucle de jeu (60 Hz), saison
+  store.js         sauvegarde JSON
+  games/
+    arena.js       physique partagée des jeux d'arène
+    sumo.js  potato.js  brawl.js  clash.js  defense.js
+public/
+  index.html  style.css  app.js
+  lib/input.js     joystick et boutons
+  lib/fx.js        particules, sons synthétisés, dessin des persos
+  games/           rendu canvas de chaque jeu
 ```
 
-La CI GitHub Actions lance PostgreSQL 17, exécute les tests du jeu et de l'authentification, puis construit l'image Docker.
+Le serveur fait tourner le jeu et envoie 20 images par seconde. Le téléphone interpole entre deux images pour rester fluide.
 
-## Organisation
+### Ajouter un jeu
 
-- `server.py` : règles des jeux, salons et WebSockets.
-- `auth.py` : OAuth Google (PKCE), cookies de session et historique.
-- `schema.sql` : schéma PostgreSQL.
-- `compose.yaml` : services Playroom et PostgreSQL pour Coolify.
-- `public/index.html` : interface mobile-first et web.
-- `public/manifest.webmanifest` : installation PWA.
-- `tests/` : multijoueur et intégration SQL.
+1. Créer `server/games/monjeu.js` qui exporte `{ id, name, emoji, tagline, duration, family, minPlayers, maxPlayers, controls, howto, create(players) }`. L'objet créé fournit `tick(dt)`, `input()` ou `action()`, `snapshot()`, `results()`, `bot()` et `over`.
+2. L'ajouter dans `server/games/index.js`.
+3. Créer son rendu dans `public/games/` et l'ajouter dans `RENDERERS` de `public/app.js`.
 
-## Jeux et expérience mobile
-
-- **Dessin** : objets faciles à dessiner, plateau tactile occupant la majorité de l'écran, clavier AZERTY facultatif qui évite l'ouverture du clavier Android, indices progressifs sur le nombre de lettres, initiale et touches grisées en fin de manche.
-- **Quiz** : réponses tactiles larges et rythme accéléré.
-- **Qui de nous ?** : votes entre amis.
-- **Blind test** : mélodies de compositions du domaine public, interprétées par synthèse Web Audio directement dans le navigateur (aucun enregistrement commercial ni API musicale tierce). La lecture commence sur un geste explicite de l'utilisateur, notamment sur Android et iOS.
-- **Mix Party** : alternance automatique des quatre jeux avec transitions animées, résultats courts, récompenses de points et classement partagé.
-
-L'identité globale reste Playroom, mais chaque mini-jeu possède son propre thème dans `public/assets/games.css` et son interface dynamique. Le clavier intégré est repliable pour laisser l'espace nécessaire au dessin ; sur ordinateur, le clavier physique fonctionne toujours.
-
-Pour un futur blind test de chansons populaires, **obtenir des droits d'utilisation sur les enregistrements et leurs compositions** avant de diffuser des extraits, même courts.
-
-## Limites de la première version
-
-- Salons, connexions et scores en cours sont en mémoire : **un seul réplicat** tant qu'il n'y a pas Redis ou une autre synchronisation partagée. Les scores sont sauvegardés quand une partie se termine.
-- WebRTC P2P fonctionne au mieux en petits groupes ; un serveur TURN est nécessaire pour fiabiliser la visio sur les réseaux mobiles.
-- Catalogue de jeux communautaires, import de jeux générés par IA, dons et jeux différés ne sont pas encore développés.
-- **Le dépôt n'est pas à lui seul une URL publique jouable** : un déploiement HTTPS sur Coolify doit être effectué et vérifié.
-
-Code et tests : [GitHub Playroomm](https://github.com/GaryBBQ75/Playroomm).
+Il apparaît automatiquement dans le vote.

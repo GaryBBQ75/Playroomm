@@ -1,11 +1,4 @@
-__pycache__/
-*.py[cod]
-.venv/
-venv/
+node_modules
+data
+*.log
 .env
-.env.*
-!.env.example
-node_modules/
-*.pem
-*.key
-.DS_Store

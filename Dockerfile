@@ -1,10 +1,12 @@
-FROM python:3.12-slim
+FROM node:22-alpine
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-COPY server.py auth.py schema.sql ./
+ENV NODE_ENV=production PORT=8080 DATA_DIR=/data
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+COPY server ./server
 COPY public ./public
-ENV PORT=8080
+RUN mkdir -p /data && chown -R node:node /data
+USER node
 EXPOSE 8080
-HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/readyz', timeout=2).read()" || exit 1
-CMD ["python","server.py"]
+HEALTHCHECK --interval=30s --timeout=3s CMD wget -qO- http://localhost:8080/healthz || exit 1
+CMD ["node", "server/index.js"]

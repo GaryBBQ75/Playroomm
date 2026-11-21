@@ -1,0 +1,13 @@
+{
+  "name": "playroom",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Playroom : l'espace de jeux d'action en temps réel pour ta bande de potes",
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "node --test tests/*.test.js"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": { "ws": "^8.18.0" }
+}
