@@ -74,7 +74,7 @@ function renderHand(priv) {
 
 export function update(view) {
   const priv = view.priv;
-  if (!priv || !bar) return;
+  if (!priv || !priv.hand || !bar) return;
   lastPriv = priv;
   L.flip = priv.team === 1;
   renderHand(priv);
@@ -85,7 +85,7 @@ export function update(view) {
 }
 
 export function tap(sx, sy, view) {
-  if (selected < 0 || !view.priv) return;
+  if (selected < 0 || !view.priv?.hand) return;
   const [x, y] = inv(sx, sy);
   if (x < 0 || x > FW || y < 0 || y > FH) return;
   const key = view.priv.hand[selected];

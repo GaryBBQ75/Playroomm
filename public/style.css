@@ -253,3 +253,11 @@ input { font: inherit; }
   .controls { height: 70%; }
   .banner { top: 22%; font-size: 26px; }
 }
+
+/* Mode solo */
+.btn.solo { background: linear-gradient(180deg, #8f6bff, var(--violet)); border-color: #b39dff; box-shadow: 0 6px 0 #4b2bb0; }
+.btn.solo:active { transform: translateY(4px); box-shadow: 0 2px 0 #4b2bb0; }
+.offline-note { display: none; margin: 0; }
+body.offline .offline-note { display: block; }
+body.offline #home-actions, body.offline #join-invite { display: none !important; }
+.code-chip:disabled { opacity: 1; }

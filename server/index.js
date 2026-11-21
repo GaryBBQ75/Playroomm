@@ -71,7 +71,11 @@ const server = http.createServer((req, res) => {
     res.end(JSON.stringify(catalog()));
     return;
   }
-  if (p === '/' || p.startsWith('/c/')) return sendFile(res, path.join(PUBLIC, 'index.html'));
+  if (p === '/' || p.startsWith('/c/') || p === '/solo') return sendFile(res, path.join(PUBLIC, 'index.html'));
+  // Moteur de jeu partagé : le mode solo le fait tourner directement dans le navigateur.
+  if (/^\/engine\/(crew\.js|games\/[a-z]+\.js)$/.test(p)) {
+    return sendFile(res, path.join(ROOT, 'server', p.slice('/engine/'.length)));
+  }
   const file = path.normalize(path.join(PUBLIC, p));
   if (!file.startsWith(PUBLIC)) { res.writeHead(403); res.end(); return; }
   sendFile(res, file);

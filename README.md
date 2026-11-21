@@ -22,6 +22,11 @@ Le QG de jeux de ta bande de potes : des jeux d'action en temps réel, courts et
 
 Commandes : joystick flottant et boutons d'action pour les jeux d'arène, cartes à toucher pour Mini Clash et Défense. Au clavier sur ordinateur : flèches ou ZQSD, Espace, Maj.
 
+## Mode solo
+
+- Dans l'app : bouton **Essayer seul contre des bots** sur l'accueil, ou l'adresse `/solo`. Le moteur tourne dans le navigateur, sans serveur.
+- Page autonome d'essai : `npm run build:solo` génère `dist/playroom-solo.html`, un seul fichier à ouvrir n'importe où.
+
 ## Lancer en local
 
 ```bash

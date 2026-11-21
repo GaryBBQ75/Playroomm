@@ -52,7 +52,7 @@ export function mount(el, a) {
 function renderBar(view) {
   const priv = view.priv;
   const s = view.cur;
-  if (!priv || !s) return;
+  if (!priv || priv.gold === undefined || !s) return;
   const gold = priv.gold;
   bar.querySelector('#df-gold').textContent = `${gold} 🪙`;
   const tower = sel ? s.towers.find(t => t.c === sel.c && t.r === sel.r) : null;

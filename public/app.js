@@ -51,7 +51,27 @@ function connect() {
     setTimeout(connect, 400 * S.retry);
   };
 }
-function send(obj) { if (S.ws && S.ws.readyState === 1) S.ws.send(JSON.stringify(obj)); }
+function send(obj) {
+  if (S.local) { S.local.handle(pid, obj); return; }
+  if (S.ws && S.ws.readyState === 1) S.ws.send(JSON.stringify(obj));
+}
+
+// ---------- Mode solo : le moteur tourne dans le navigateur, contre des bots ----------
+async function startSolo() {
+  sound.unlock();
+  const name = $('in-name').value.trim() || store.get('pr_name') || 'Moi';
+  store.set('pr_name', name);
+  const [{ Crew }, { catalog }] = await Promise.all([import('./engine/crew.js'), import('./engine/games/index.js')]);
+  let rec;
+  try { rec = JSON.parse(store.get('pr_solo') || 'null'); } catch { rec = null; }
+  if (!rec || !rec.season) rec = { code: 'SOLO', name: 'Mode solo', createdAt: Date.now(), season: {}, history: [] };
+  const crew = new Crew(rec, { save() { store.set('pr_solo', JSON.stringify(rec)); } });
+  S.local = crew;
+  S.hello = null;
+  onMessage({ type: 'welcome', you: pid, catalog: catalog() });
+  crew.join(pid, name, str => onMessage(JSON.parse(str)));
+  for (let i = 0; i < 3; i++) crew.addBot();
+}
 
 function joinCrew(hello) {
   sound.unlock();
@@ -111,12 +131,14 @@ function onState(st) {
   const first = !S.state;
   S.state = st;
   S.endAt = performance.now() + (st.remaining || 0);
-  store.set('pr_crew', st.crew.code);
-  if (first || location.pathname !== `/c/${st.crew.code}`) history.replaceState(null, '', `/c/${st.crew.code}`);
+  if (!S.local) {
+    store.set('pr_crew', st.crew.code);
+    if (first || location.pathname !== `/c/${st.crew.code}`) history.replaceState(null, '', `/c/${st.crew.code}`);
+  }
   document.querySelectorAll('.host-only').forEach(el => el.classList.toggle('hidden', !isHost()));
   const map = { lobby: 's-lobby', vote: 's-vote', spin: 's-spin', intro: 's-intro', playing: 's-game', results: 's-results' };
   const target = map[st.phase] || 's-lobby';
-  if (target !== 's-game') { S.cur = null; S.prev = null; S.snapGame = null; }
+  if (target !== 's-game') { S.cur = null; S.prev = null; S.priv = null; S.snapGame = null; }
   show(target);
   if (target === 's-lobby') renderLobby();
   if (target === 's-vote') renderVote();
@@ -163,6 +185,7 @@ $('btn-join').onclick = () => {
   joinCrew({ name: n, crew: code });
 };
 $('btn-join-invite').onclick = () => { const n = needName(); if (n) joinCrew({ name: n, crew: $('invite-code').textContent }); };
+$('btn-solo').onclick = () => startSolo();
 $('btn-resume').onclick = () => { const n = needName(); if (n) joinCrew({ name: n, crew: store.get('pr_crew') }); };
 $('in-code').addEventListener('keydown', e => { if (e.key === 'Enter') $('btn-join').click(); });
 
@@ -171,7 +194,8 @@ let tab = 'season';
 function renderLobby() {
   const st = S.state;
   $('crew-name').textContent = st.crew.name;
-  $('crew-code').textContent = st.crew.code;
+  $('crew-code').textContent = S.local ? 'Solo contre des bots' : `${st.crew.code} · Inviter`;
+  $('btn-share').disabled = !!S.local;
   const slots = [];
   for (const p of st.players) {
     slots.push(`<div class="pl">${p.id === st.hostId ? '<span class="crown">👑</span>' : ''}${avatar(p.color)}<span class="name">${esc(p.name)}${p.id === pid ? ' (toi)' : ''}</span>${p.bot ? '<span class="tag">bot</span>' : ''}</div>`);
@@ -215,6 +239,7 @@ $('btn-start').onclick = () => { sound.unlock(); send({ type: 'start' }); };
 $('btn-bot-add').onclick = () => send({ type: 'addBot' });
 $('btn-bot-rem').onclick = () => send({ type: 'removeBot' });
 $('btn-leave').onclick = () => {
+  if (S.local) { S.local.leave(pid); S.local = null; S.state = null; showHome(); return; }
   S.hello = null;
   store.del('pr_crew');
   try { S.ws?.close(); } catch { /* rien */ }
@@ -458,7 +483,13 @@ $('btn-full').onclick = () => {
   if (document.fullscreenElement) document.exitFullscreen?.();
   else (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el)?.catch?.(() => toast('Plein écran indisponible ici'));
 };
-$('btn-quit').onclick = () => { if (confirm('Arrêter la partie pour tout le monde ?')) send({ type: 'lobby' }); };
+// Double appui pour arrêter (les fenêtres confirm() sont bloquées dans certaines vues).
+let quitArmed = 0;
+$('btn-quit').onclick = () => {
+  if (Date.now() - quitArmed < 2500) { quitArmed = 0; send({ type: 'lobby' }); return; }
+  quitArmed = Date.now();
+  toast('Touche encore ✕ pour arrêter la partie');
+};
 
 // ---------- Divers ----------
 function toast(msg) {
@@ -475,10 +506,14 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && S.hello && (!S.ws || S.ws.readyState > 1)) connect();
 });
 
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+const OFFLINE = !!window.PLAYROOM_OFFLINE;
+if (OFFLINE) document.body.classList.add('offline');
+else if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
 
 // Démarrage : reprise automatique si on a déjà un pseudo et un crew.
 (function boot() {
+  if (OFFLINE) { showHome(); return; }
+  if (location.pathname === '/solo') { startSolo(); return; }
   const m = location.pathname.match(/^\/c\/([A-Za-z0-9]{4,8})/);
   const name = store.get('pr_name');
   const code = m ? m[1].toUpperCase() : null;
