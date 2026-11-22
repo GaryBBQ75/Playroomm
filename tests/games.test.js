@@ -1,7 +1,7 @@
 // Fait jouer chaque jeu par des bots jusqu'à la fin, sans réseau.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { GAME_LIST } from '../server/games/index.js';
+import { ALL_GAMES as GAME_LIST } from '../server/games/index.js';
 
 const players = n => Array.from({ length: n }, (_, i) => ({ id: 'p' + i, name: 'Joueur ' + i, color: '#fff', bot: true }));
 

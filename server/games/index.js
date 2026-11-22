@@ -7,8 +7,13 @@ import clash from './clash.js';
 import defense from './defense.js';
 import chase from './chase.js';
 
-export const GAME_LIST = [sumo, potato, brawl, clash, defense, chase];
-export const GAMES = Object.fromEntries(GAME_LIST.map(g => [g.id, g]));
+// Tous les jeux disponibles dans le code.
+export const ALL_GAMES = [sumo, potato, brawl, clash, defense, chase];
+export const GAMES = Object.fromEntries(ALL_GAMES.map(g => [g.id, g]));
+
+// Jeux proposés aux joueurs pour l'instant. Pour réactiver les autres, les remettre ici.
+const ACTIVE = ['chase'];
+export const GAME_LIST = ALL_GAMES.filter(g => ACTIVE.includes(g.id));
 
 export function catalog() {
   return GAME_LIST.map(g => ({

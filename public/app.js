@@ -409,7 +409,7 @@ function tickers() {
     const n = Math.ceil(left / 1000);
     if ($('intro-count').textContent !== String(n)) { $('intro-count').textContent = n; if (n <= 3 && n > 0) sound.play('tick'); }
   } else if (S.screen === 's-results') {
-    $('res-next').textContent = `Vote du prochain jeu dans ${Math.ceil(left / 1000)} s`;
+    $('res-next').textContent = `Prochaine partie dans ${Math.ceil(left / 1000)} s`;
   }
 }
 

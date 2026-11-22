@@ -189,6 +189,8 @@ export class Crew {
   startVote() {
     const eligible = this.eligibleGames();
     if (!eligible.length) return;
+    // Un seul jeu au catalogue : pas de vote, on enchaîne directement.
+    if (eligible.length === 1) { this.results = null; this.vote = null; this.startIntro(eligible[0]); return; }
     const others = shuffle(eligible.filter(id => id !== this.lastGame));
     const options = others.slice(0, 3);
     if (this.lastGame && eligible.includes(this.lastGame)) options.push(this.lastGame);
