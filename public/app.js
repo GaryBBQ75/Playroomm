@@ -4,8 +4,9 @@ import { fx, sound } from './lib/fx.js';
 import * as arena from './games/arena.js';
 import * as clash from './games/clash.js';
 import * as defense from './games/defense.js';
+import * as chase from './games/chase3d.js';
 
-const RENDERERS = { sumo: arena, potato: arena, brawl: arena, clash, defense };
+const RENDERERS = { sumo: arena, potato: arena, brawl: arena, clash, defense, chase };
 const EMOTES = ['😂', '🔥', '😱', '👏', '😈', '💀'];
 
 const $ = id => document.getElementById(id);
@@ -372,6 +373,8 @@ function renderIntro() {
   $('intro-name').textContent = g.name;
   $('intro-tag').textContent = g.tagline;
   $('intro-howto').innerHTML = g.howto.map(h => `<li>${esc(h)}</li>`).join('');
+  // Un rendu peut profiter de la présentation pour charger ses ressources (3D).
+  RENDERERS[S.state.gameId]?.preload?.();
   const playing = S.state.participants.includes(pid);
   $('intro-spec').textContent = playing ? (g.controls.type === 'stick' ? 'Astuce : tourne le téléphone ou passe en plein écran pour plus de confort.' : '') : '👀 Partie complète : tu regardes celle-ci.';
 }
@@ -421,6 +424,7 @@ let lastSent = 0;
 let pendingSend = null;
 let hudCache = '';
 let bannerCache = '';
+let mounted = null; // rendu du jeu affiché, pour le démonter proprement en sortant
 
 const controls = createControls({
   onChange(inp) {
@@ -475,6 +479,10 @@ function enterGame() {
   hudCache = ''; bannerCache = '';
   const g = gameDef(S.state.gameId);
   const r = RENDERERS[S.state.gameId];
+  mounted = r || null;
+  // Un rendu qui gère son propre canvas (3D) masque le canvas 2D commun.
+  cv.style.visibility = r?.ownCanvas ? 'hidden' : '';
+  $('s-game').dataset.game = S.state.gameId; // pour les réglages CSS propres à un jeu
   if (g && g.controls.type === 'tap' && r?.mount) r.mount($('tapbar'), api);
   refreshGameChrome();
   resize();
@@ -486,6 +494,9 @@ function enterGame() {
 
 function leaveGame() {
   cancelAnimationFrame(raf);
+  mounted?.unmount?.();
+  mounted = null;
+  cv.style.visibility = '';
   controls.setActive(false);
   $('emote-bar').classList.add('hidden');
   $('tapbar').classList.remove('on');
@@ -499,10 +510,11 @@ function frame(now) {
   raf = requestAnimationFrame(frame);
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
-  const w = cv.clientWidth, h = cv.clientHeight;
-  ctx.fillStyle = '#0e0c20';
-  ctx.fillRect(0, 0, w, h);
   const r = RENDERERS[S.state?.gameId];
+  if (!r?.ownCanvas) {
+    ctx.fillStyle = '#0e0c20';
+    ctx.fillRect(0, 0, cv.clientWidth, cv.clientHeight);
+  }
   if (!r) return;
   fx.update(dt);
   r.step?.(dt);

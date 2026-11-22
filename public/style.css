@@ -281,3 +281,37 @@ video.mirror { transform: scaleX(-1); }
 @media (orientation: landscape) and (max-height: 560px) {
   .visio-strip .vb { width: 42px; height: 42px; }
 }
+
+/* Jeux en 3D : canvas WebGL derrière le HUD, et calque HTML (noms, flèche, effets) */
+.gl3d { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; display: block; }
+.gl3d-ui { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 2; }
+.gl3d-fail { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 30px; text-align: center; font-weight: 800; color: var(--muted); }
+/* Course-poursuite : interface sobre, façon Pako */
+.car-tag { position: absolute; left: 0; top: 0; font-size: 10px; font-weight: 700; line-height: 1; letter-spacing: .4px; text-transform: uppercase; padding: 3px 6px; border-radius: 4px; color: #fff; background: rgba(47, 49, 66, .62); white-space: nowrap; will-change: transform; }
+.car-tag.me { background: #2f3142; color: #f6c453; }
+.chase-arrow { position: absolute; left: 0; top: 0; width: 0; height: 0; display: none; border-left: 18px solid var(--c, #fff); border-top: 11px solid transparent; border-bottom: 11px solid transparent; filter: drop-shadow(0 2px 0 rgba(47, 49, 66, .55)); will-change: transform; }
+.chase-arrow.on { display: block; }
+.chase-arrow.near { animation: chase-blink .3s steps(2) infinite; }
+@keyframes chase-blink { to { opacity: .35; } }
+.chase-flash { position: absolute; inset: 0; opacity: 0; background: #fff; }
+.chase-flash.on { animation: chase-flash .4s ease-out; }
+@keyframes chase-flash { from { opacity: .7; } to { opacity: 0; } }
+.chase-count { position: absolute; left: 0; right: 0; top: 21%; text-align: center; font-family: var(--title); font-size: 72px; font-weight: 800; line-height: 1; color: #fff; text-shadow: 0 4px 0 #2f3142; }
+.chase-count.pop { animation: chase-pop .4s cubic-bezier(.2, 1.6, .4, 1); }
+@keyframes chase-pop { from { transform: scale(1.8); opacity: 0; } }
+.chase-float { position: absolute; transform: translate(-50%, -50%); font-family: var(--title); font-size: 22px; font-weight: 800; white-space: nowrap; text-shadow: 0 2px 0 #2f3142; animation: chase-float 1s ease-out forwards; }
+@keyframes chase-float { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.4); } 15% { opacity: 1; transform: translate(-50%, -70%) scale(1.1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -190%); } }
+/* Bandeau graphique en travers de l'écran : "Arrêté !", "Échappé !" */
+.chase-stamp { position: absolute; left: -10%; right: -10%; top: 24%; display: flex; justify-content: center; padding: 10px 0 8px; opacity: 0; transform: rotate(-5deg) scaleY(0); background: #f2695c; box-shadow: 0 6px 0 #2f3142; }
+.chase-stamp.escape { background: #3fb8af; }
+.chase-stamp span { font-family: var(--title); font-size: 44px; font-weight: 800; line-height: 1; letter-spacing: 3px; text-transform: uppercase; color: #fff; text-shadow: 0 3px 0 rgba(47, 49, 66, .45); }
+.chase-stamp.on { animation: chase-stamp 2.2s cubic-bezier(.2, 1.4, .4, 1) forwards; }
+@keyframes chase-stamp { 0% { opacity: 1; transform: rotate(-5deg) scaleY(0); } 10% { opacity: 1; transform: rotate(-5deg) scaleY(1.15); } 16%, 82% { opacity: 1; transform: rotate(-5deg) scaleY(1); } 100% { opacity: 0; transform: rotate(-5deg) scaleY(1) translateX(30%); } }
+#s-game[data-game="chase"] .banner { top: 12%; font-size: 21px; letter-spacing: .3px; text-shadow: 0 2px 0 #2f3142; }
+#s-game[data-game="chase"].on ~ .visio-strip { top: calc(var(--safe-t) + 100px); }
+@media (orientation: landscape) and (max-height: 560px) {
+  .chase-count { font-size: 50px; top: 27%; }
+  .chase-stamp { top: 30%; }
+  .chase-stamp span { font-size: 34px; }
+  #s-game[data-game="chase"] .banner { top: 15%; font-size: 19px; }
+}

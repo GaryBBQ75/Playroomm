@@ -5,8 +5,9 @@ import potato from './potato.js';
 import brawl from './brawl.js';
 import clash from './clash.js';
 import defense from './defense.js';
+import chase from './chase.js';
 
-export const GAME_LIST = [sumo, potato, brawl, clash, defense];
+export const GAME_LIST = [sumo, potato, brawl, clash, defense, chase];
 export const GAMES = Object.fromEntries(GAME_LIST.map(g => [g.id, g]));
 
 export function catalog() {

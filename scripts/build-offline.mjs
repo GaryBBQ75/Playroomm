@@ -11,7 +11,8 @@ const out = process.argv[2] || path.join(ROOT, 'dist', 'playroom-solo.html');
 const engine = {
   name: 'engine',
   setup(b) {
-    b.onResolve({ filter: /^\.\/engine\// }, args => ({ path: path.join(ROOT, 'server', args.path.slice('./engine/'.length)) }));
+    // './engine/…' depuis app.js, '../engine/…' depuis les rendus de public/games.
+    b.onResolve({ filter: /^\.\.?\/engine\// }, args => ({ path: path.join(ROOT, 'server', args.path.replace(/^\.\.?\/engine\//, '')) }));
   },
 };
 
@@ -26,9 +27,12 @@ const icon = fs.readFileSync(path.join(ROOT, 'public', 'icon.svg'), 'utf8');
 let html = fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8');
 html = html
   .replace(/<link rel="manifest"[^>]*>\n?/, '')
+  // Three.js est inclus dans le bundle (résolu depuis node_modules) : plus besoin de l'import map.
+  .replace(/\s*<script type="importmap">[\s\S]*?<\/script>/, '')
   .replace(/<link rel="icon"[^>]*>/, `<link rel="icon" href="data:image/svg+xml,${encodeURIComponent(icon)}">`)
-  .replace(/<link rel="stylesheet" href="\/style.css">/, `<style>${css}</style>`)
-  .replace(/<script type="module" src="\/app.js"><\/script>/, `<script>window.PLAYROOM_OFFLINE=true</script><script type="module">${js}</script>`);
+  // Remplacements par fonction : le code inséré peut contenir des '$' (Three.js en a).
+  .replace(/<link rel="stylesheet" href="\/style.css">/, () => `<style>${css}</style>`)
+  .replace(/<script type="module" src="\/app.js"><\/script>/, () => `<script>window.PLAYROOM_OFFLINE=true</script><script type="module">${js}</script>`);
 fs.mkdirSync(path.dirname(out), { recursive: true });
 fs.writeFileSync(out, html);
 console.log(`OK ${out} (${Math.round(html.length / 1024)} Ko)`);

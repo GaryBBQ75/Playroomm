@@ -160,6 +160,23 @@ export const sound = {
       case 'coin': set('square', 900, 1400, 0.08, 0.04); break;
       case 'win': set('triangle', 500, 1200, 0.5, 0.12); break;
       case 'shot': set('triangle', 700, 300, 0.05, 0.025); break;
+      case 'skid': set('sawtooth', 1250, 820, 0.16, 0.022); break;
+      case 'cash': // "ka-ching" : deux notes aiguës
+        o.type = 'square';
+        o.frequency.setValueAtTime(1250, t);
+        o.frequency.setValueAtTime(1870, t + 0.07);
+        g.gain.setValueAtTime(0.05, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.26);
+        o.start(t); o.stop(t + 0.28);
+        break;
+      case 'siren': // deux tons qui alternent
+        o.type = 'square';
+        for (let k = 0; k < 6; k++) o.frequency.setValueAtTime(k % 2 ? 620 : 830, t + k * 0.13);
+        g.gain.setValueAtTime(0.045, t);
+        g.gain.setValueAtTime(0.045, t + 0.6);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
+        o.start(t); o.stop(t + 0.82);
+        break;
       default: set('sine', 440, 440, 0.05, 0.03);
     }
   },

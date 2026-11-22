@@ -240,10 +240,21 @@ export class Crew {
     this.setPhase('playing', 0);
     this.broadcastState();
     this.tickN = 0;
+    this.lastStep = 0;
     this.loop = setInterval(() => this.step(), TICK * 1000);
   }
 
+  // Appelé 60 fois par seconde. Si la boucle a pris du retard (navigateur occupé par le
+  // rendu en mode solo, serveur chargé), on rattrape quelques pas pour garder le temps réel.
   step() {
+    const now = Date.now();
+    const late = this.lastStep ? (now - this.lastStep) / (TICK * 1000) : 1;
+    this.lastStep = now;
+    const n = late > 2 ? Math.min(8, Math.round(late)) : 1;
+    for (let i = 0; i < n && this.game && this.phase === 'playing'; i++) this.stepOnce();
+  }
+
+  stepOnce() {
     const g = this.game;
     if (!g) return;
     try {

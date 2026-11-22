@@ -20,6 +20,7 @@ Le QG de jeux de ta bande de potes : des jeux d'action en temps réel, courts et
 | 🥊 Bagarre | Chaos | 3 min | 2 à 8 |
 | 🏰 Mini Clash | Stratégie (équipes) | 3 min | 2 à 8 |
 | 🛡️ Défense coop | Défense | 8 à 10 min | 1 à 8 |
+| 🚓 Course-poursuite (3D) | Chaos | 3 min | 2 à 8 |
 
 Commandes : joystick flottant et boutons d'action pour les jeux d'arène, cartes à toucher pour Mini Clash et Défense. Au clavier sur ordinateur : flèches ou ZQSD, Espace, Maj.
 
@@ -63,11 +64,14 @@ server/
   games/
     arena.js       physique partagée des jeux d'arène
     sumo.js  potato.js  brawl.js  clash.js  defense.js
+    chase.js       Course-poursuite : physique des voitures, bots, manches
+    chasemap.js    carte de la ville, partagée avec le rendu 3D
 public/
   index.html  style.css  app.js
   lib/input.js     joystick et boutons
   lib/fx.js        particules, sons synthétisés, dessin des persos
-  games/           rendu canvas de chaque jeu
+  games/           rendu canvas de chaque jeu (chase3d.js : rendu Three.js)
+  vendor/          three.module.min.js, régénéré par `npm run vendor:three`
 ```
 
 Le serveur fait tourner le jeu et envoie 20 images par seconde. Le téléphone interpole entre deux images pour rester fluide.
@@ -79,3 +83,5 @@ Le serveur fait tourner le jeu et envoie 20 images par seconde. Le téléphone i
 3. Créer son rendu dans `public/games/` et l'ajouter dans `RENDERERS` de `public/app.js`.
 
 Il apparaît automatiquement dans le vote.
+
+Un rendu peut aussi exporter `preload()` (appelé pendant la présentation du jeu), `unmount()` (appelé en quittant le jeu) et `ownCanvas = true` s'il gère son propre canvas, comme la Course-poursuite en 3D. `node scripts/sim-chase.mjs` fait tourner des parties de bots et affiche les statistiques d'équilibrage.

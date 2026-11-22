@@ -3,16 +3,18 @@
   "version": "2.0.0",
   "private": true,
   "type": "module",
-  "description": "Playroom : l'espace de jeux d'action en temps r\u00e9el pour ta bande de potes",
+  "description": "Playroom : l'espace de jeux d'action en temps réel pour ta bande de potes",
   "scripts": {
     "start": "node server/index.js",
     "test": "node --test tests/*.test.js",
-    "build:solo": "node scripts/build-offline.mjs"
+    "build:solo": "node scripts/build-offline.mjs",
+    "vendor:three": "esbuild node_modules/three/build/three.module.js --bundle --minify --format=esm --outfile=public/vendor/three.module.min.js"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
+    "three": "^0.187.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {
