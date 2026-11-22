@@ -56,7 +56,7 @@ export function createControls({ onChange }) {
   zone.addEventListener('pointercancel', endStick);
 
   function bindBtn(el, key) {
-    const down = e => { e.preventDefault(); state[key] = true; el.classList.add('down'); emit(); navigator.vibrate?.(10); };
+    const down = e => { e.preventDefault(); state[key] = true; el.classList.add('down'); emit(); };
     const up = e => { e.preventDefault(); state[key] = false; el.classList.remove('down'); emit(); };
     el.addEventListener('pointerdown', down);
     el.addEventListener('pointerup', up);

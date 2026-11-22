@@ -7,18 +7,23 @@ import {
   SIZE, CELL, GN, LOW,
 } from './chasemap.js';
 
-const ROUND_TIME = 45;
+const ROUND_TIME = 75;
+const GRACE = 4;           // bouclier du fugitif en début de manche
+const HP_MAX = 100;
+const WAVE_EVERY = 6;      // les flics entrent en jeu l'un après l'autre
+const PIN_TIME = 2.5;      // immobilisé contre un flic aussi longtemps : arrêté
 const MAX_ROUNDS = 4;
 const READY_TIME = 2.6;
 const END_TIME = 3.2;
-const SURVIVE_EVERY = 3;   // 1 point toutes les 3 s de cavale
+const SURVIVE_EVERY = 5;   // 1 point toutes les 5 s de cavale
 const BAG_PTS = 2;
 const BUST_PTS = 5;        // le flic qui arrête
 const ASSIST_PTS = 2;      // les autres flics
 const ESCAPE_PTS = 8;
 const MAX_BAGS = 4;
-const HOLD_TIME = 0.4;     // contact maintenu pour arrêter
-const RAM_SPEED = 100;     // ou choc franc à cette vitesse relative
+const RAM_SPEED = 70;      // choc franc d'un flic : il enlève de la vie au fugitif
+const GRIND = 30;          // vie perdue par seconde de contact maintenu
+const HIT_PTS = 1;         // par choc porté au fugitif
 
 const CAR_R = 11;          // deux disques par voiture (avant et arrière)
 const CAR_OFF = 10;
@@ -31,14 +36,16 @@ const BLAST = 75;          // rayon du souffle d'un baril
 const NPC_SPEED = 105;
 const MODELS = 6;          // modèles de voitures du fugitif (tirés au hasard à chaque manche)
 
-// Plus les flics sont nombreux, moins ils sont rapides ; seul (à 2 joueurs), le flic a
-// un turbo bien plus fréquent.
-const ROBBER = { speed: 262, accel: 430, turn: 3.7 };
-const COP = { speed: 246, accel: 390, turn: 3.4 };
+// Le fugitif est le plus rapide en ligne droite ; les flics tournent plus sec et accrochent
+// mieux (ils coupent les virages), et accélèrent peu à peu au fil de la manche. Seul
+// (à 2 joueurs), le flic est presque aussi rapide et a un turbo bien plus fréquent.
+const ROBBER = { speed: 262, accel: 430, turn: 3.6, grip: 4.8 };
+const COP = { speed: 262, accel: 400, turn: 4.1, grip: 6.5 };
 function roleConfig(role, cops) {
-  if (role === 'robber') return { ...ROBBER, turboCd: Math.max(4, 7 - 0.5 * cops) };
-  if (cops === 1) return { ...COP, speed: 256, accel: 430, turboCd: 3 };
-  return { ...COP, speed: COP.speed - 8 * Math.min(6, cops - 2), turboCd: 5 };
+  if (role === 'robber') return { ...ROBBER, turboCd: Math.max(4, 6.5 - 0.4 * cops) };
+  if (cops === 1) return { ...COP, k0: 0.95, k1: 1.03, accel: 430, turboCd: 3 };
+  const less = 0.012 * Math.min(5, cops - 2);
+  return { ...COP, k0: 0.9 - less, k1: 1 - less, turboCd: 5 };
 }
 
 export default {
@@ -46,7 +53,7 @@ export default {
   name: 'Course-poursuite',
   emoji: '🚓',
   tagline: 'Un fugitif, des flics, toute une ville en 3D',
-  duration: '3 min',
+  duration: '5 min',
   family: 'Chaos',
   minPlayers: 2,
   maxPlayers: 8,
@@ -54,8 +61,8 @@ export default {
   howto: [
     'Touche la moitié gauche ou droite de l\'écran pour tourner',
     'Les deux côtés en même temps : frein à main, ça dérape !',
-    'Fugitif : tiens 45 s et ramasse les liasses de billets',
-    'Flics : foncez dessus, mais gare aux murs et aux barils',
+    'Fugitif : tiens 75 s, chaque choc d\'un flic te coûte de la vie',
+    'Flics : percutez-le pour vider sa barre, sans vous rentrer dedans',
   ],
   create(players) { return new Chase(players); },
 };
@@ -99,6 +106,9 @@ class Chase {
     this.wait = READY_TIME;
     this.fugScore = 0;
     this.surviveT = 0;
+    this.hp = HP_MAX;
+    this.pin = 0;
+    this.theme = (this.round - 1) % 3;
     this.bags = [];
     this.bagT = 0.5;
     this.ai = {};
@@ -108,17 +118,20 @@ class Chase {
     // Les flics partent des accès les plus proches, à bonne distance tout de même.
     const far = shuffle([...this.map.copSpawns])
       .map(([x, y]) => ({ x, y, d: Math.hypot(x - fx, y - fy) }))
-      .filter(s => s.d > 620)
+      .filter(s => s.d > 800)
       .sort((a, b) => a.d - b.d);
+    // Montée en tension : un flic au départ, les autres arrivent en renfort.
+    const every = cops > 1 ? Math.min(WAVE_EVERY, 24 / (cops - 1)) : 0;
     let k = 0;
     this.cars = this.players.map(p => {
       const fug = p.id === this.fugId;
+      const wave = fug ? 0 : k * every;
       const pos = fug ? { x: fx, y: fy } : far[k++ % far.length];
       return {
         id: p.id, role: fug ? 'robber' : 'cop', cfg: roleConfig(fug ? 'robber' : 'cop', cops),
         x: pos.x, y: pos.y, a: fug ? fa : Math.atan2(fy - pos.y, fx - pos.x), vx: 0, vy: 0,
         up: -1, z: 0, inp: { s: 0, b: false, a: false }, prevA: false,
-        cdA: 0, turbo: 0, skid: 0, hold: 0, bump: 0, dead: 0, rev: 0, jam: 0, age: 0,
+        cdA: 0, turbo: 0, skid: 0, bump: 0, dead: 0, rev: 0, jam: 0, age: 0, out: wave, stun: 0, inv: 0, hitCd: 0,
       };
     });
     // Circulation civile et objets explosifs remis en place.
@@ -169,6 +182,10 @@ class Chase {
 
     // Liasses de billets.
     const fug = this.car(this.fugId);
+    // Immobilisé au contact d'un flic pendant plusieurs secondes : c'est fini.
+    const near = this.cars.filter(c => c.role === 'cop' && c.out <= 0 && c.dead <= 0 && Math.abs(c.z - fug.z) < 18 && Math.hypot(c.x - fug.x, c.y - fug.y) < 48);
+    this.pin = near.length && Math.hypot(fug.vx, fug.vy) < 45 && this.t > GRACE ? this.pin + dt : Math.max(0, this.pin - dt * 2);
+    if (this.pin > PIN_TIME) { this.arrest(near[0], fug); return; }
     this.bagT -= dt;
     if (this.bags.length < MAX_BAGS && this.bagT <= 0) { this.spawnBag(fug); this.bagT = 1.5; }
     for (const b of this.bags) {
@@ -176,6 +193,7 @@ class Chase {
         b.gone = true;
         this.scores[this.fugId] += BAG_PTS;
         this.fugScore += BAG_PTS;
+        this.hp = Math.min(HP_MAX, this.hp + 4); // un peu de répit
         this.events.push({ t: 'cash', id: fug.id, x: b.x, y: b.y, h: b.z });
       }
     }
@@ -220,10 +238,11 @@ class Chase {
   // ---------- Physique ----------
   simulate(dt, stopping) {
     for (const c of this.cars) this.drive(c, dt, stopping);
+    this.live = this.cars.filter(c => c.out <= 0);
     this.moveNpcs(dt);
     this.collideCars();
     this.collideNpcs();
-    for (const c of this.cars) this.collideWorld(c);
+    for (const c of this.live) this.collideWorld(c);
     for (const b of this.barrels) {
       if (b.alive && b.fuse > 0) { b.fuse -= dt; if (b.fuse <= 0) this.blowBarrel(b); }
     }
@@ -235,6 +254,14 @@ class Chase {
     c.turbo = Math.max(0, c.turbo - dt);
     c.bump = Math.max(0, c.bump - dt);
     c.age += dt;
+    c.stun = Math.max(0, c.stun - dt);
+    c.inv = Math.max(0, c.inv - dt);
+    c.hitCd = Math.max(0, c.hitCd - dt);
+    if (c.out > 0) {
+      // En renfort : la voiture entre en jeu à son tour, loin du fugitif.
+      if (!stopping) { c.out -= dt; if (c.out <= 0) { c.out = 0; this.respawn(c); } }
+      return;
+    }
     if (c.dead > 0) {
       // Carcasse en feu : elle glisse encore un peu, puis le flic réapparaît ailleurs.
       c.dead -= dt;
@@ -273,15 +300,18 @@ class Chase {
       c.jam += dt;
       if (c.jam > 0.22) { c.rev = 0.45; c.jam = 0; c.age = -0.45; } // et on laisse le temps de repartir
     } else c.jam = 0;
-    let target = cfg.speed * (1 - 0.1 * Math.abs(inp.s));
-    if (c.turbo > 0) target = cfg.speed * 1.45;
+    // Les flics gagnent en vitesse au fil de la manche.
+    const top = cfg.k0 ? cfg.speed * (cfg.k0 + (cfg.k1 - cfg.k0) * Math.min(1, this.t / 45)) : cfg.speed;
+    let target = top * (1 - 0.1 * Math.abs(inp.s));
+    if (c.turbo > 0) target = top * 1.45;
+    if (c.stun > 0) target *= 0.35; // sonné après avoir percuté le fugitif
     if (brake) target *= 0.62;
     if (c.rev > 0) target = -150;
     if (stopping) target = 0;
     const accel = c.turbo > 0 ? cfg.accel * 2.6 : cfg.accel;
     vf += clamp(target - vf, -(stopping ? 520 : c.rev > 0 ? 900 : 300) * dt, accel * dt);
     // Peu d'adhérence latérale : ça glisse dans chaque virage, et beaucoup au frein à main.
-    vl *= Math.exp(-(brake ? 1.1 : 4.8) * dt);
+    vl *= Math.exp(-(brake ? 1.1 : cfg.grip) * dt);
     c.skid = !stopping && Math.abs(vl) > (brake ? 20 : 30) && Math.hypot(vf, vl) > 90 ? 1 : 0;
 
     c.vx = fx * vf + rx * vl;
@@ -296,22 +326,20 @@ class Chase {
     return [[c.x + ox, c.y + oy], [c.x - ox, c.y - oy]];
   }
 
-  // Repousse la voiture le long de la normale (nx, ny) et amortit le choc.
+  // Repousse la voiture hors d'un obstacle. On glisse le long des murs : seule la partie
+  // de la vitesse qui rentre dans le mur est perdue, sans rebond ; un choc bien de face coûte plus.
   bounce(c, nx, ny, depth) {
     c.x += nx * depth; c.y += ny * depth;
     const vn = c.vx * nx + c.vy * ny;
     if (vn >= 0) return 0;
-    c.vx -= 1.3 * vn * nx; c.vy -= 1.3 * vn * ny;
-    if (vn < -130) {
-      // Choc franc : on perd de la vitesse, et une voiture de police lancée à fond explose.
-      c.vx *= 0.72; c.vy *= 0.72;
+    c.vx -= 1.02 * vn * nx; c.vy -= 1.02 * vn * ny;
+    if (vn < -170) {
+      // Une voiture de police lancée à fond droit dans un mur explose.
       if (c.role === 'cop' && vn < -WRECK_WALL && this.phase === 'play' && c.dead <= 0) { this.wreck(c); return vn; }
       if (c.bump <= 0) {
-        c.bump = 0.35;
+        c.bump = 0.5;
         this.events.push({ t: 'crash', id: c.id, x: Math.round(c.x - nx * CAR_R), y: Math.round(c.y - ny * CAR_R), h: Math.round(c.z), f: r1(Math.min(1, -vn / 300)) });
       }
-    } else {
-      c.vx *= 0.992; c.vy *= 0.992;
     }
     return vn;
   }
@@ -320,7 +348,7 @@ class Chase {
   wreck(c) {
     if (c.dead > 0 || c.role !== 'cop') return;
     c.dead = WRECK_TIME;
-    c.turbo = 0; c.hold = 0;
+    c.turbo = 0;
     c.vx *= 0.35; c.vy *= 0.35;
     this.stats.wrecks += 1;
     this.events.push({ t: 'boom', id: c.id, x: Math.round(c.x), y: Math.round(c.y), h: Math.round(c.z) });
@@ -330,7 +358,7 @@ class Chase {
     const fug = this.car(this.fugId);
     const spots = this.map.copSpawns
       .map(([x, y]) => ({ x, y, d: Math.hypot(x - fug.x, y - fug.y) }))
-      .filter(s => s.d > 420 && !this.cars.some(o => o !== c && Math.hypot(o.x - s.x, o.y - s.y) < 60))
+      .filter(s => s.d > 520 && !this.cars.some(o => o !== c && o.out <= 0 && Math.hypot(o.x - s.x, o.y - s.y) < 60))
       .sort((a, b) => a.d - b.d);
     const s = spots[Math.floor(Math.random() * Math.min(3, spots.length))] || { x: 40, y: 40 };
     c.x = s.x; c.y = s.y; c.vx = c.vy = 0; c.up = -1; c.z = 0;
@@ -348,7 +376,7 @@ class Chase {
     this.events.push({ t: 'boom', x: b.x, y: b.y, h: 0, big: b.kind === 'pump' ? 1 : 0 });
     const reach = b.kind === 'pump' ? BLAST * 1.3 : BLAST;
     for (const c of this.cars) {
-      if (c.up >= 0) continue;
+      if (c.up >= 0 || c.out > 0) continue;
       const dx = c.x - b.x, dy = c.y - b.y, d = Math.hypot(dx, dy) || 1;
       if (d > reach) continue;
       const k = 330 * (1 - d / reach);
@@ -465,8 +493,7 @@ class Chase {
   }
 
   collideCars() {
-    const cars = this.cars;
-    const touching = new Set();
+    const cars = this.live;
     for (let i = 0; i < cars.length; i++) {
       for (let j = i + 1; j < cars.length; j++) {
         const a = cars[i], b = cars[j];
@@ -478,7 +505,7 @@ class Chase {
         b.x += nx * depth / 2; b.y += ny * depth / 2;
         const rv = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
         if (rv < 0) {
-          const imp = -1.6 * rv / 2;
+          const imp = -1.5 * rv / 2;
           a.vx -= imp * nx; a.vy -= imp * ny;
           b.vx += imp * nx; b.vy += imp * ny;
           if (rv < -90 && a.bump <= 0 && b.bump <= 0) {
@@ -488,17 +515,20 @@ class Chase {
           // Deux voitures de police qui se rentrent dedans à fond : tout explose.
           if (rv < -WRECK_CAR && a.role === 'cop' && b.role === 'cop' && this.phase === 'play') { this.wreck(a); this.wreck(b); }
         }
-        // Flic contre fugitif : choc franc ou contact maintenu, c'est l'arrestation.
-        if (this.phase === 'play' && a.role !== b.role) {
-          const cop = a.role === 'cop' ? a : b, fug = cop === a ? b : a;
-          if (cop.dead > 0) continue;
-          touching.add(cop.id);
-          cop.hold += 1 / 60;
-          if (-rv > RAM_SPEED || cop.hold >= HOLD_TIME) this.arrest(cop, fug);
-        }
+        // Flic contre fugitif : chaque choc franc enlève de la vie, le contact prolongé aussi.
+        if (this.phase !== 'play' || a.role === b.role || this.t < GRACE) continue;
+        const cop = a.role === 'cop' ? a : b, fug = cop === a ? b : a;
+        if (cop.dead > 0) continue;
+        if (-rv > RAM_SPEED && cop.hitCd <= 0 && fug.inv <= 0) {
+          const dmg = Math.round(clamp(13 + -rv * 0.095, 20, 42));
+          this.hp -= dmg;
+          cop.hitCd = 1.2; cop.stun = 0.9; fug.inv = 0.8;
+          this.scores[cop.id] += HIT_PTS;
+          this.events.push({ t: 'hit', id: fug.id, by: cop.id, x: Math.round(best.x), y: Math.round(best.y), h: Math.round(fug.z), d: dmg });
+        } else if (fug.inv <= 0) this.hp -= GRIND / 60;
+        if (this.hp <= 0) { this.hp = 0; this.arrest(cop, fug); }
       }
     }
-    for (const c of cars) if (!touching.has(c.id)) c.hold = Math.max(0, c.hold - 0.5 / 60);
   }
 
   // ---------- Circulation civile ----------
@@ -544,7 +574,7 @@ class Chase {
         const dx = x - n.x, dy = y - n.y, f = dx * fx + dy * fy;
         return f > 8 && f < 62 && Math.abs(dx * -fy + dy * fx) < 19;
       };
-      for (const c of this.cars) if (c.up < 0 && ahead(c.x, c.y)) blocked = true;
+      for (const c of this.live) if (c.up < 0 && ahead(c.x, c.y)) blocked = true;
       for (let k = 0; k < idx; k++) if (this.npcs[k].k <= 0 && ahead(this.npcs[k].x, this.npcs[k].y)) blocked = true;
       // Si ça dure, elle force le passage : personne ne reste coincé.
       n.wait = blocked ? n.wait + dt : 0;
@@ -557,7 +587,7 @@ class Chase {
   collideNpcs() {
     for (const n of this.npcs) {
       if (n.k > 0) continue;
-      for (const c of this.cars) {
+      for (const c of this.live) {
         if (c.up >= 0 || c.z > 10) continue;
         const best = this.touch(n, c);
         if (!best) continue;
@@ -585,13 +615,14 @@ class Chase {
     const ev = this.events; this.events = [];
     return {
       round: this.round, rounds: this.rounds, phase: this.phase, msg: this.msg,
-      timer: Math.max(0, Math.ceil(ROUND_TIME - this.t)),
+      timer: Math.max(0, Math.ceil(ROUND_TIME - this.t)), el: Math.round(this.t * 100) / 100, dur: ROUND_TIME,
+      hp: Math.max(0, Math.round(this.hp)), sh: this.phase !== 'end' && this.t < GRACE ? 1 : 0, th: this.theme,
       count: this.phase === 'ready' ? Math.ceil(this.wait) : 0,
       fug: this.fugId, fs: this.fugScore, fm: this.fugModel,
       cars: this.cars.map(c => ({
         id: c.id, x: r1(c.x), y: r1(c.y), a: Math.round(c.a * 1000) / 1000, h: Math.round(c.z),
         v: Math.round(Math.hypot(c.vx, c.vy)), cop: c.role === 'cop' ? 1 : 0,
-        sk: c.skid, tb: c.turbo > 0 ? 1 : 0, dd: c.dead > 0 ? 1 : 0,
+        sk: c.skid, tb: c.turbo > 0 ? 1 : 0, dd: c.dead > 0 ? 1 : 0, w: Math.ceil(c.out),
         cd: +(c.cdA / c.cfg.turboCd).toFixed(2),
       })),
       npcs: this.npcs.map(n => [Math.round(n.x), Math.round(n.y), Math.round(n.a * 100) / 100, n.k > 0 ? 1 : 0]),
@@ -607,7 +638,7 @@ class Chase {
     const stamp = Math.floor(this.t * 10);
     if (this.fields && this.fields.stamp === stamp) return this.fields;
     const fug = this.car(this.fugId);
-    const cops = this.cars.filter(c => c.role === 'cop' && c.dead <= 0);
+    const cops = this.cars.filter(c => c.role === 'cop' && c.dead <= 0 && c.out <= 0);
     this.fields = {
       stamp,
       fug: this.nav.field([this.nodeOf(fug)]),
@@ -660,7 +691,7 @@ class Chase {
   bot(pid, dt = 0.1) {
     const me = this.car(pid);
     const idle = { input: { s: 0, b: false, a: false } };
-    if (!me || this.phase !== 'play' || me.dead > 0) return idle;
+    if (!me || this.phase !== 'play' || me.dead > 0 || me.out > 0) return idle;
     const ai = this.ai[pid] || (this.ai[pid] = { still: 0, escape: 0, ex: 0, ey: 0, node: -1, lx: me.x, ly: me.y, seed: Math.random() * 10 });
 
     // Anti-blocage : si on n'avance plus, on vise un autre point de passage pendant un instant.
@@ -734,6 +765,7 @@ class Chase {
     const fug = this.car(this.fugId);
     const cops = this.cars.filter(c => c.role === 'cop');
     const k = cops.indexOf(me);
+    if (me.stun > 0.4) return { s: 0, b: false, a: false };
     const d = Math.hypot(fug.x - me.x, fug.y - me.y);
     // Chaque flic anticipe un peu différemment pour prendre le fugitif en tenaille.
     const lead = d > 140 ? [0.15, 0.8, 0.45, 1.2][k % 4] * Math.min(1, d / 400) : 0.1;
@@ -750,7 +782,7 @@ class Chase {
 
   botRobber(me, ai) {
     const f = this.getFields();
-    const cops = this.cars.filter(c => c.role === 'cop' && c.dead <= 0);
+    const cops = this.cars.filter(c => c.role === 'cop' && c.dead <= 0 && c.out <= 0);
     const danger = cops.length ? Math.min(...cops.map(c => Math.hypot(c.x - me.x, c.y - me.y) + Math.abs(c.z - me.z) * 4)) : 9999;
     const cands = this.candidates(me);
     if (!cands.length) return this.steerTo(me, SIZE / 2, SIZE / 2);

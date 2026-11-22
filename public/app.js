@@ -393,7 +393,7 @@ function renderResults() {
       <span class="pts">${row.bot ? '' : `+${row.points}`}</span>
     </div>`).join('');
   const me = r.rows.find(x => x.id === pid);
-  if (me?.rank === 1) { sound.play('win'); navigator.vibrate?.([80, 60, 80, 60, 200]); }
+  if (me?.rank === 1) { sound.play('win'); }
 }
 $('btn-res-lobby').onclick = () => send({ type: 'lobby' });
 $('btn-res-vote').onclick = () => send({ type: 'skip' });

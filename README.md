@@ -20,9 +20,9 @@ Le QG de jeux de ta bande de potes : des jeux d'action en temps réel, courts et
 | 🥊 Bagarre | Chaos | 3 min | 2 à 8 |
 | 🏰 Mini Clash | Stratégie (équipes) | 3 min | 2 à 8 |
 | 🛡️ Défense coop | Défense | 8 à 10 min | 1 à 8 |
-| 🚓 Course-poursuite (3D) | Chaos | 3 min | 2 à 8 |
+| 🚓 Course-poursuite (3D) | Chaos | 5 min | 2 à 8 |
 
-Commandes : joystick flottant et boutons d'action pour les jeux d'arène, cartes à toucher pour Mini Clash et Défense, moitié gauche ou droite de l'écran pour tourner dans la Course-poursuite (les deux à la fois : frein à main). Au clavier sur ordinateur : flèches ou ZQSD, Espace, Maj.
+Commandes : joystick flottant et boutons d'action pour les jeux d'arène, cartes à toucher pour Mini Clash et Défense, moitié gauche ou droite de l'écran pour tourner dans la Course-poursuite (les deux à la fois : frein à main). L'app ne fait jamais vibrer le téléphone. Au clavier sur ordinateur : flèches ou ZQSD, Espace, Maj.
 
 ## Mode solo
 
@@ -85,5 +85,7 @@ Le serveur fait tourner le jeu et envoie 20 images par seconde. Le téléphone i
 Il apparaît automatiquement dans le vote.
 
 Un rendu peut aussi exporter `preload()` (appelé pendant la présentation du jeu), `unmount()` (appelé en quittant le jeu) et `ownCanvas = true` s'il gère son propre canvas, comme la Course-poursuite en 3D. `node scripts/sim-chase.mjs` fait tourner des parties de bots et affiche les statistiques d'équilibrage (arrestations, explosions, blocages des bots et des voitures civiles, passages sur les rampes).
+
+Course-poursuite, en bref : manches de 75 s, le fugitif a une barre de vie que les chocs des flics font descendre (arrêté à zéro, ou s'il reste immobilisé contre un flic), un bouclier de 4 s au départ, et les flics entrent en jeu l'un après l'autre. Trois ambiances tournent d'une manche à l'autre (automne, nuit, hiver).
 
 Types de commandes (`controls.type`) : `stick` (joystick et boutons), `tap` (barre d'actions du jeu) et `steer` (gauche / droite façon Pako, entrée `{ s, b, a }` : sens de braquage de -1 à 1, frein à main, turbo).

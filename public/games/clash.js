@@ -123,7 +123,6 @@ export function onEvent(ev, view) {
         fx.addShake(14);
         sound.play('boom');
         fx.text(ev.x, ev.y - 40, ev.team === myTeam ? 'Tour perdue !' : '👑 Tour détruite !', '#ffbe0b', 1.6);
-        navigator.vibrate?.(150);
       } else fx.burst(ev.x, ev.y, TEAM[ev.team], 10, 180, 0.4, 6);
       break;
     case 'play':

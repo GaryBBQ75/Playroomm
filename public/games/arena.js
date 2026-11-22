@@ -45,7 +45,7 @@ export function onEvent(ev, view) {
     case 'fall':
       fx.text(ev.x, ev.y - 40, ev.by ? `KO par ${view.players[ev.by]?.name || '?'} !` : 'Plouf !', '#ffbe0b', 1.2);
       sound.play('fall');
-      if (ev.id === me) navigator.vibrate?.([60, 40, 120]);
+      if (ev.id === me)
       break;
     case 'boom':
       fx.burst(ev.x, ev.y, '#ffbe0b', 40, 520, 0.9, 12);
@@ -53,17 +53,16 @@ export function onEvent(ev, view) {
       fx.ring(ev.x, ev.y, '#fff', 260, 0.5);
       fx.addShake(16);
       sound.play('boom');
-      navigator.vibrate?.(ev.id === me ? [200, 80, 200] : 80);
       break;
     case 'pass':
       sound.play('pass');
-      if (ev.to === me) { navigator.vibrate?.([40, 30, 40]); }
+      if (ev.to === me) { }
       break;
     case 'hit':
       fx.burst(ev.x, ev.y, ev.f > 0.6 ? '#ff4d6d' : '#fff', 10, 300, 0.35, 6);
       fx.addShake(3 + ev.f * 6);
       sound.play('hit');
-      if (ev.id === me) navigator.vibrate?.(40);
+      if (ev.id === me)
       break;
     default:
   }

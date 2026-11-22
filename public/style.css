@@ -328,3 +328,38 @@ video.mirror { transform: scaleX(-1); }
 .steer-turbo span { position: relative; z-index: 1; pointer-events: none; }
 .steer-turbo i { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(rgba(0, 0, 0, .6) var(--cd, 0%), transparent 0); pointer-events: none; }
 .steer-turbo.down { transform: scale(.92); border-color: #f6c453; }
+
+/* Course-poursuite : vignette, HUD fin (barre de vie, chrono, billets, progression) */
+.chase-vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 46%, transparent 52%, var(--vig, rgba(0, 0, 0, .45)) 135%); }
+.chase-ui { font-family: 'Inter', system-ui, sans-serif; color: #fff; }
+.p3-hud { position: absolute; left: calc(var(--safe-l, 0px) + 14px); top: calc(var(--safe-t) + 14px); display: flex; flex-direction: column; gap: 5px; text-shadow: 0 1px 2px rgba(0, 0, 0, .35); }
+.p3-life { display: flex; align-items: center; gap: 8px; }
+.p3-life b { position: relative; width: 13px; height: 13px; }
+.p3-life b::before, .p3-life b::after { content: ''; position: absolute; background: #fff; }
+.p3-life b::before { left: 4.5px; top: 0; width: 4px; height: 13px; }
+.p3-life b::after { left: 0; top: 4.5px; width: 13px; height: 4px; }
+.p3-life span { width: 96px; height: 5px; background: rgba(255, 255, 255, .28); }
+.p3-life i { display: block; height: 100%; width: 100%; background: #fff; transition: width .25s ease-out; }
+.p3-life.low i { background: #ff5a5f; }
+.p3-life.shield i { background: #8fe6ff; }
+.p3-life.hit { animation: p3-hit .35s; }
+@keyframes p3-hit { 20% { transform: translateX(-4px); } 40% { transform: translateX(4px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
+.p3-row { display: flex; align-items: center; gap: 8px; font-size: 19px; font-weight: 400; letter-spacing: .5px; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.p3-row b { width: 13px; height: 13px; box-sizing: border-box; }
+.p3-time b { border: 2px solid #fff; border-radius: 50%; }
+.p3-cash b { height: 9px; border-top: 3px double #fff; border-bottom: 3px solid #fff; }
+.p3-role { font-size: 10px; font-weight: 600; letter-spacing: 1.4px; text-transform: uppercase; opacity: .85; }
+.p3-progress { position: absolute; left: 50%; top: calc(var(--safe-t) + 60px); width: 34%; max-width: 220px; transform: translateX(-50%); display: flex; align-items: center; gap: 6px; }
+.p3-progress span { flex: 1; height: 4px; background: rgba(255, 255, 255, .28); }
+.p3-progress i { display: block; height: 100%; width: 0; background: #fff; }
+.p3-progress b { font-size: 13px; line-height: 1; font-weight: 400; }
+.chase-note { position: absolute; left: 0; right: 0; top: 34%; text-align: center; font-size: 15px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; text-shadow: 0 1px 3px rgba(0, 0, 0, .5); }
+.chase-ui .car-tag { background: rgba(20, 22, 36, .55); font-weight: 600; }
+#s-game[data-game="chase"] .hud-center { display: none; }
+#s-game[data-game="chase"] .banner { top: 17%; font-family: 'Inter', system-ui, sans-serif; font-weight: 600; font-size: 17px; letter-spacing: 1.5px; text-transform: uppercase; text-shadow: 0 1px 3px rgba(0, 0, 0, .55); }
+.chase-ui .chase-count { font-family: 'Inter', system-ui, sans-serif; font-weight: 400; text-shadow: 0 2px 6px rgba(0, 0, 0, .35); top: 24%; }
+@media (orientation: landscape) and (max-height: 560px) {
+  .p3-progress { top: calc(var(--safe-t) + 18px); }
+  .chase-note { top: 44%; }
+  #s-game[data-game="chase"] .banner { top: 20%; font-size: 15px; }
+}

@@ -116,7 +116,6 @@ export function onEvent(ev, view) {
     case 'leak':
       fx.addShake(6 + ev.n * 2);
       sound.play('hit');
-      navigator.vibrate?.(60);
       break;
     case 'build': case 'up': {
       const [x, y] = S(ev.c, ev.r);

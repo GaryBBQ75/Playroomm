@@ -5,10 +5,12 @@ import chase from '../server/games/chase.js';
 
 const GAMES = Number(process.argv[2] || 30);
 const dt = 1 / 60;
-for (const n of [2, 3, 4, 5, 8]) {
+for (const n of (process.argv[3] ? process.argv[3].split(',').map(Number) : [2, 3, 4, 5, 8])) {
   let rounds = 0, busts = 0, bustTime = 0, fugPts = 0, stuck = 0, maxStuck = 0, npcMax = 0, upTime = 0, climbs = 0, time = 0;
   const st = { wrecks: 0, barrels: 0, tosses: 0 };
   let where = '';
+  const survival = []; // durée de cavale de chaque manche (75 s = échappé)
+  let hits = 0;
   for (let g = 0; g < GAMES; g++) {
     const ps = Array.from({ length: n }, (_, i) => ({ id: 'p' + i, name: 'Bot ' + i, color: '#fff', bot: true }));
     const game = chase.create(ps);
@@ -20,7 +22,7 @@ for (const n of [2, 3, 4, 5, 8]) {
       const before = game.phase, tBefore = game.t;
       game.tick(dt);
       if (game.round !== round) { round = game.round; rounds++; still = {}; anchor = {}; npcStill = []; npcAnchor = []; was = {}; }
-      if (before === 'play' && game.phase === 'end') { fugPts += game.fugScore; if (game.msg.startsWith('Arrêté')) { busts++; bustTime += tBefore; } }
+      if (before === 'play' && game.phase === 'end') { fugPts += game.fugScore; survival.push(tBefore); if (game.msg.startsWith('Arrêté')) { busts++; bustTime += tBefore; } }
       if (game.phase === 'play') {
         time += dt;
         // Temps passé sans s'éloigner de plus de 25 unités d'un point (carcasses exclues).
@@ -29,7 +31,7 @@ for (const n of [2, 3, 4, 5, 8]) {
           if (c.up >= 0 && !(was[c.id] >= 0)) climbs++;
           was[c.id] = c.up;
           const a = anchor[c.id];
-          if (c.dead > 0 || !a || Math.hypot(c.x - a.x, c.y - a.y) > 25) { anchor[c.id] = { x: c.x, y: c.y }; still[c.id] = 0; continue; }
+          if (c.dead > 0 || c.out > 0 || !a || Math.hypot(c.x - a.x, c.y - a.y) > 25) { anchor[c.id] = { x: c.x, y: c.y }; still[c.id] = 0; continue; }
           still[c.id] += dt; stuck += dt;
           if (still[c.id] > maxStuck) { maxStuck = still[c.id]; where = `${c.role} (${Math.round(c.x)}, ${Math.round(c.y)}) niveau ${c.up}`; }
         }
@@ -39,9 +41,11 @@ for (const n of [2, 3, 4, 5, 8]) {
           npcStill[i] += dt; npcMax = Math.max(npcMax, npcStill[i]);
         });
       }
-      game.snapshot();
+      for (const e of game.snapshot().ev) if (e.t === 'hit') hits++;
     }
     for (const k in st) st[k] += game.stats[k];
   }
-  console.log(`${n} joueurs : ${rounds} manches, ${(100 * busts / rounds).toFixed(0)} % d'arrestations (en ${(bustTime / Math.max(1, busts)).toFixed(1)} s en moyenne), ${(fugPts / rounds).toFixed(1)} pts fugitif/manche | blocage max bot ${maxStuck.toFixed(1)} s ${where}, civil ${npcMax.toFixed(1)} s | par manche : ${(st.wrecks / rounds).toFixed(1)} flics explosés, ${(st.barrels / rounds).toFixed(1)} barils, ${(st.tosses / rounds).toFixed(1)} civils projetés, ${(climbs / rounds).toFixed(1)} montées sur un ouvrage (${(100 * upTime / (time * n)).toFixed(1)} % du temps)`);
+  survival.sort((a, b) => a - b);
+  const q = f => survival[Math.min(survival.length - 1, Math.floor(survival.length * f))].toFixed(0);
+  console.log(`${n} joueurs : ${rounds} manches, survie du fugitif médiane ${q(0.5)} s (quartiles ${q(0.25)} à ${q(0.75)} s, minimum ${q(0)} s), ${(100 * busts / rounds).toFixed(0)} % d'arrestations, ${(hits / rounds).toFixed(1)} chocs encaissés, ${(fugPts / rounds).toFixed(1)} pts fugitif/manche | blocage max bot ${maxStuck.toFixed(1)} s ${where}, civil ${npcMax.toFixed(1)} s | par manche : ${(st.wrecks / rounds).toFixed(1)} flics explosés, ${(st.barrels / rounds).toFixed(1)} barils, ${(st.tosses / rounds).toFixed(1)} civils projetés, ${(climbs / rounds).toFixed(1)} montées sur un ouvrage (${(100 * upTime / (time * n)).toFixed(1)} % du temps)`);
 }
