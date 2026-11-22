@@ -265,7 +265,8 @@ export class Crew {
         const p = this.players.get(id);
         if (!p || !p.bot || !g.bot) continue;
         const def = GAMES[this.gameId];
-        if (def.controls.type === 'stick') {
+        // Jeux pilotés en continu (joystick, ou gauche/droite de la Course-poursuite).
+        if (def.controls.type === 'stick' || def.controls.type === 'steer') {
           if (!botStick) continue;
           const out = g.bot(id, 0.1);
           if (out?.input) g.input(id, out.input);

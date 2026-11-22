@@ -16,7 +16,7 @@ for (const def of GAME_LIST) {
       while (!g.over && t < 900) {
         bt += dt;
         for (const p of ps) {
-          if (def.controls.type === 'stick') {
+          if (def.controls.type === 'stick' || def.controls.type === 'steer') {
             if (bt >= 0.1) { const o = g.bot(p.id, 0.1); if (o?.input) g.input(p.id, o.input); }
           } else {
             const o = g.bot(p.id, dt); if (o?.action) g.action(p.id, o.action);

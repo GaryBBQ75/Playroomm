@@ -1,4 +1,4 @@
-import { createControls } from './lib/input.js';
+import { createControls, createSteer } from './lib/input.js';
 import { createVisio } from './lib/visio.js';
 import { fx, sound } from './lib/fx.js';
 import * as arena from './games/arena.js';
@@ -376,7 +376,7 @@ function renderIntro() {
   // Un rendu peut profiter de la présentation pour charger ses ressources (3D).
   RENDERERS[S.state.gameId]?.preload?.();
   const playing = S.state.participants.includes(pid);
-  $('intro-spec').textContent = playing ? (g.controls.type === 'stick' ? 'Astuce : tourne le téléphone ou passe en plein écran pour plus de confort.' : '') : '👀 Partie complète : tu regardes celle-ci.';
+  $('intro-spec').textContent = playing ? (g.controls.type !== 'tap' ? 'Astuce : tourne le téléphone ou passe en plein écran pour plus de confort.' : '') : '👀 Partie complète : tu regardes celle-ci.';
 }
 
 // ---------- Résultats ----------
@@ -436,6 +436,9 @@ const controls = createControls({
   },
 });
 
+// Commandes gauche / droite (Course-poursuite) : chaque changement part tout de suite.
+const steer = createSteer({ onChange(inp) { send({ type: 'input', v: inp }); } });
+
 function view() {
   const st = S.state;
   const players = {};
@@ -467,11 +470,14 @@ function refreshGameChrome() {
   if (!g) return;
   const playing = S.state.participants.includes(pid);
   const stick = g.controls.type === 'stick';
+  const steering = g.controls.type === 'steer';
   $('controls').classList.toggle('hidden', !stick || !playing);
-  $('tapbar').classList.toggle('on', !stick && playing);
+  $('steer').classList.toggle('hidden', !steering || !playing);
+  $('tapbar').classList.toggle('on', g.controls.type === 'tap' && playing);
   $('spectator').classList.toggle('hidden', playing);
   controls.setLabels(g.controls.a === 'Coup' ? '👊' : '⚡', g.controls.b ? '💨' : '');
   controls.setActive(stick && playing);
+  steer.setActive(steering && playing);
 }
 
 function enterGame() {
@@ -498,6 +504,7 @@ function leaveGame() {
   mounted = null;
   cv.style.visibility = '';
   controls.setActive(false);
+  steer.setActive(false);
   $('emote-bar').classList.add('hidden');
   $('tapbar').classList.remove('on');
   $('tapbar').innerHTML = '';
@@ -531,7 +538,7 @@ function frame(now) {
   }
   const msg = S.cur?.msg || '';
   if (msg !== bannerCache) { bannerCache = msg; $('banner').textContent = msg; }
-  if (r.cooldowns) { const [a, b] = r.cooldowns(v); controls.setCooldowns(a, b); }
+  if (r.cooldowns) { const [a, b] = r.cooldowns(v); controls.setCooldowns(a, b); steer.setCooldown(a); }
 }
 
 cv.addEventListener('pointerdown', e => {

@@ -106,3 +106,66 @@ export function createControls({ onChange }) {
     },
   };
 }
+
+// Commandes façon Pako : moitié gauche de l'écran = tourner à gauche, moitié droite = tourner
+// à droite, les deux à la fois = frein à main (on garde le sens du premier doigt posé).
+// Un petit bouton turbo au milieu. Clavier : flèches gauche / droite, Espace, Maj.
+export function createSteer({ onChange }) {
+  const zl = document.getElementById('steer-l');
+  const zr = document.getElementById('steer-r');
+  const turbo = document.getElementById('btn-turbo');
+  const touch = { l: new Set(), r: new Set() };
+  const keys = new Set();
+  let active = false;
+  let first = 0;      // sens du premier appui, conservé pendant le frein à main
+  let boost = false;
+  let last = '';
+
+  function emit() {
+    const l = touch.l.size > 0 || keys.has('ArrowLeft') || keys.has('KeyA') || keys.has('KeyQ');
+    const r = touch.r.size > 0 || keys.has('ArrowRight') || keys.has('KeyD');
+    let s = 0, b = keys.has('ShiftLeft') || keys.has('ArrowDown') || keys.has('KeyS');
+    if (l && r) { s = first; b = true; } else { s = l ? -1 : r ? 1 : 0; first = s; }
+    const a = boost || keys.has('Space') || keys.has('ArrowUp') || keys.has('KeyW') || keys.has('KeyZ');
+    zl.classList.toggle('down', l);
+    zr.classList.toggle('down', r);
+    const key = `${s}${b ? 1 : 0}${a ? 1 : 0}`;
+    if (key !== last) { last = key; onChange({ s, b, a }); }
+  }
+
+  function bindZone(el, side) {
+    el.addEventListener('pointerdown', e => { if (!active) return; e.preventDefault(); touch[side].add(e.pointerId); try { el.setPointerCapture(e.pointerId); } catch { /* rien */ } emit(); });
+    const up = e => { if (touch[side].delete(e.pointerId)) emit(); };
+    el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', up);
+    el.addEventListener('lostpointercapture', up);
+    el.addEventListener('contextmenu', e => e.preventDefault());
+  }
+  bindZone(zl, 'l');
+  bindZone(zr, 'r');
+  const down = e => { if (!active) return; e.preventDefault(); e.stopPropagation(); boost = true; turbo.classList.add('down'); emit(); };
+  const up = e => { e.preventDefault(); boost = false; turbo.classList.remove('down'); emit(); };
+  turbo.addEventListener('pointerdown', down);
+  turbo.addEventListener('pointerup', up);
+  turbo.addEventListener('pointercancel', up);
+  turbo.addEventListener('pointerleave', up);
+  turbo.addEventListener('contextmenu', e => e.preventDefault());
+
+  window.addEventListener('keydown', e => {
+    if (!active || e.repeat || e.target.tagName === 'INPUT') return;
+    keys.add(e.code); emit();
+    if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
+  });
+  window.addEventListener('keyup', e => { if (active && keys.delete(e.code)) emit(); });
+
+  return {
+    setActive(v) {
+      if (active === v) return;
+      active = v;
+      touch.l.clear(); touch.r.clear(); keys.clear(); boost = false; first = 0;
+      turbo.classList.remove('down');
+      if (!v) { last = ''; zl.classList.remove('down'); zr.classList.remove('down'); } else emit();
+    },
+    setCooldown(a) { turbo.style.setProperty('--cd', `${Math.round(a * 100)}%`); },
+  };
+}
